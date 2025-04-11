@@ -16,6 +16,15 @@ A Flutter plugin for managing media files and directories across multiple platfo
 - Storage permission handling
 - Cross-platform support (Android, iOS, macOS)
 
+
+
+
+![20250410_232749](https://github.com/user-attachments/assets/a4f4b66b-dfcb-42da-9236-1c1decd6fd52)
+
+
+
+
+
 ## Installation
 
 Add this to your package's `pubspec.yaml` file:
