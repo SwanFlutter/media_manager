@@ -431,14 +431,16 @@ try {
 ## Contributors
 
 <p align="left">
-  <a href="https://github.com/SwanFlutter/SwanFlutter/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" />
+  <a href="https://github.com/SwanFlutter">
+    <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" alt="SwanFlutter" style="vertical-align:middle;" />
+    <span style="vertical-align:middle;">SwanFlutter</span>
   </a>
 </p>
 
 <p align="left">
   <a href="https://github.com/rezash76">
-    <img src="https://contrib.rocks/image?repo=rezash76/rezash76" />
+    <img src="https://contrib.rocks/image?repo=rezash76/SwanFlutter" alt="rezash76" style="vertical-align:middle;" />
+    <span style="vertical-align:middle;">rezash76</span>
   </a>
 </p>
 
