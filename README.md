@@ -430,8 +430,10 @@ try {
 
 ## Contributors
 
-- [SwanFlutter](https://github.com/SwanFlutter)
-- [Reza Sharifi](https://github.com/rezash76)
+[![SwanFlutter](https://img.shields.io/github/avatar/SwanFlutter?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/SwanFlutter)
+[![Reza Sharifi](https://img.shields.io/github/avatar/rezash76?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/rezash76)
+
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
