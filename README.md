@@ -438,7 +438,7 @@ try {
 
 <p align="left">
   <a href="https://github.com/rezash76">
-    <img src="https://contrib.rocks/image?repo=rezash76/SwanFlutter" />
+    <img src="https://contrib.rocks/image?repo=rezash76/rezash76" />
   </a>
 </p>
 
