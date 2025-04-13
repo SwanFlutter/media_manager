@@ -430,17 +430,17 @@ try {
 
 ## Contributors
 
-<p align=left>
+<p align="left">
+  <a href="https://github.com/SwanFlutter/SwanFlutter/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" />
+  </a>
+</p>
 
-<a href="https://github.com/SwanFlutter/SwanFlutter/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" />
-</a>
-
-<p align=left>
-
-<a href="[https://github.com/SwanFlutter](https://github.com/rezash76)/SwanFlutter/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=rezash76/rezash76" />
-</a>
+<p align="left">
+  <a href="https://github.com/rezash76">
+    <img src="https://contrib.rocks/image?repo=rezash76/SwanFlutter" />
+  </a>
+</p>
 
 
 
