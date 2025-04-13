@@ -430,11 +430,29 @@ try {
 
 ## Contributors
 
+[![SwanFlutter](https://img.shields.io/github/avatar/SwanFlutter?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/SwanFlutter)
+[![Reza Sharifi](https://img.shields.io/github/avatar/rezash76?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/rezash76)
+
+<p align=center>
+
+We appreciate all people who are participating in this project. Some people here and many many more outside of Github. It means a lot to us. ♥
+
+</p>
+
 <p align=center>
 
 <a href="https://github.com/SwanFlutter/SwanFlutter/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" />
 </a>
+
+</p>
+
+<p align=center>
+
+Made with <a rel="" target="_blank" href="https://contrib.rocks">Contrib.Rocks</a>
+
+</p>
+
 
 
 ## License
