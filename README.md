@@ -430,8 +430,11 @@ try {
 
 ## Contributors
 
-[![SwanFlutter](https://img.shields.io/github/avatar/SwanFlutter?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/SwanFlutter)
-[![Reza Sharifi](https://img.shields.io/github/avatar/rezash76?s=100&v=4&style=for-the-badge&logo=github)](https://github.com/rezash76)
+<p align=center>
+
+<a href="https://github.com/SwanFlutter/SwanFlutter/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" />
+</a>
 
 
 ## License
