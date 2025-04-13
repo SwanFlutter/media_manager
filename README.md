@@ -439,7 +439,7 @@ try {
 
 <p align="left">
   <a href="https://github.com/rezash76">
-    <img src="https://contrib.rocks/image?repo=rezash76/SwanFlutter" alt="rezash76" style="vertical-align:middle;" />
+    <img src="https://avatars.githubusercontent.com/u/38264846?s=64&v=4/SwanFlutter" alt="rezash76" style="vertical-align:middle;" />
     <span style="vertical-align:middle;">rezash76</span>
   </a>
 </p>
