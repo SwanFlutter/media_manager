@@ -1,6 +1,6 @@
 name: media_manager
 description: "A Flutter plugin for managing media files and directories across multiple platforms."
-version: 0.0.2
+version: 0.0.3
 homepage: "https://github.com/SwanFlutter/media_manager"
 
 environment:

@@ -39,7 +39,7 @@ A Flutter plugin for managing media files and directories across multiple platfo
 
 
 
-
+---
 
 
 
@@ -57,7 +57,7 @@ Add this to your package's `pubspec.yaml` file:
 ```yaml
 
 dependencies:
-  media_manager: ^0.0.2
+  media_manager: ^0.0.3
 
 ```
 
