@@ -437,12 +437,16 @@ try {
   </a>
 </p>
 
-<p align="left">
-  <a href="https://github.com/rezash76">
-    <img src="https://contrib.rocks/image?repo=SwanFlutter/rezash76" alt="rezash76" style="vertical-align:middle;" />
-    <span style="vertical-align:middle;">rezash76</span>
-  </a>
-</p>
+<li class="mb-2 d-flex">
+      <a href="https://github.com/rezash76" class="mr-2" data-hovercard-type="user" data-hovercard-url="/users/rezash76/hovercard" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self">
+        <img src="https://avatars.githubusercontent.com/u/38264846?s=64&amp;v=4" alt="@rezash76" size="32" height="32" width="32" data-view-component="true" class="avatar circle">
+      </a>
+      <span data-view-component="true" class="flex-self-center min-width-0 css-truncate css-truncate-overflow width-fit flex-auto">
+        <a href="https://github.com/rezash76" class="Link--primary no-underline flex-self-center">
+          <strong><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">rezash76 </font></font></strong>
+          <span class="color-fg-muted"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">رضا شریفی</font></font></span>
+        </a>
+</span>    </li>
 
 
 
