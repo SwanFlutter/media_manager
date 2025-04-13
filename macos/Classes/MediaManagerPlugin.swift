@@ -172,39 +172,63 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     private func getDirectoryContents(path: String, result: @escaping FlutterResult) {
-        let fileManager = FileManager.default
-        let directoryURL = URL(fileURLWithPath: path)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fileManager = FileManager.default
+            let directoryURL = URL(fileURLWithPath: path)
 
-        do {
-            let contents = try fileManager.contentsOfDirectory(at: directoryURL,
-                                                              includingPropertiesForKeys: [.contentTypeKey, .fileSizeKey],
-                                                              options: [.skipsHiddenFiles])
+            do {
+                // Only using fileSizeKey to avoid macOS version compatibility issues
+                let contents = try fileManager.contentsOfDirectory(at: directoryURL,
+                                                                  includingPropertiesForKeys: [.fileSizeKey, .creationDateKey],
+                                                                  options: [.skipsHiddenFiles])
 
-            let items = contents.map { url -> [String: Any] in
-                let isDirectory = url.hasDirectoryPath
-                let fileSize = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                let extension = url.pathExtension.lowercased()
+                let items = contents.map { url -> [String: Any] in
+                    let isDirectory = url.hasDirectoryPath
+                    var fileSize: Int64 = 0
+                    
+                    do {
+                        let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
+                        fileSize = Int64(resourceValues.fileSize ?? 0)
+                    } catch {
+                        print("Error getting file size: \(error)")
+                    }
+                    
+                    let fileExt = url.pathExtension.lowercased()
+                    var lastModified: TimeInterval = 0
+                    
+                    do {
+                        if let date = try url.resourceValues(forKeys: [.creationDateKey]).creationDate {
+                            lastModified = date.timeIntervalSince1970
+                        }
+                    } catch {
+                        print("Error getting creation date: \(error)")
+                    }
 
-                var item: [String: Any] = [
-                    "name": url.lastPathComponent,
-                    "path": url.path,
-                    "isDirectory": isDirectory,
-                    "type": isDirectory ? "directory" : getFileType(extension),
-                    "extension": extension,
-                    "readableSize": formatFileSize(fileSize ?? 0)
-                ]
+                    return [
+                        "name": url.lastPathComponent,
+                        "path": url.path,
+                        "isDirectory": isDirectory,
+                        "type": isDirectory ? "directory" : self.getFileType(fileExt),
+                        "extension": fileExt,
+                        "size": fileSize,
+                        "readableSize": self.formatFileSize(fileSize),
+                        "lastModified": lastModified
+                    ]
+                }
+                .sorted { (($0["isDirectory"] as! Bool) && !($1["isDirectory"] as! Bool)) ||
+                        (($0["isDirectory"] as! Bool) == ($1["isDirectory"] as! Bool) &&
+                         ($0["name"] as! String) < ($1["name"] as! String)) }
 
-                return item
+                DispatchQueue.main.async {
+                    result(items)
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    result(FlutterError(code: "FILE_ACCESS_ERROR",
+                                      message: error.localizedDescription,
+                                      details: nil))
+                }
             }
-            .sorted { (($0["isDirectory"] as! Bool) && !($1["isDirectory"] as! Bool)) ||
-                     (($0["isDirectory"] as! Bool) == ($1["isDirectory"] as! Bool) &&
-                      ($0["name"] as! String) < ($1["name"] as! String)) }
-
-            result(items)
-        } catch {
-            result(FlutterError(code: "FILE_ACCESS_ERROR",
-                              message: error.localizedDescription,
-                              details: nil))
         }
     }
 
