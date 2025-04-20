@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:typed_data';
+
 import 'media_manager_platform_interface.dart';
 
 /// A class that provides media management functionality across platforms.
@@ -113,8 +115,38 @@ class MediaManager {
   ///   }
   /// }
   /// ```
+
   Future<bool> requestStoragePermission() {
-    return MediaManagerPlatform.instance.requestStoragePermission();
+    if (Platform.isAndroid) {
+      return MediaManagerPlatform.instance.requestStoragePermission();
+    } else if (Platform.isIOS) {
+      return MediaManagerPlatform.instance.requestStoragePermission();
+    } else if (Platform.isMacOS) {
+      return MediaManagerPlatform.instance.requestMacStoragePermission();
+    } else {
+      return Future.value(false); // Default return value if no condition is met
+    }
+  }
+
+  /// Requests Mac storage permission from the user.
+  /// Returns true if permission was granted.
+  ///
+  /// Example:
+  /// ```dart
+  /// void checkAndRequestMacPermission() async {
+  ///   bool hasPermission = await MediaManager().requestMacStoragePermission();
+  ///   if (hasPermission) {
+  ///     print('Permission granted, proceeding with operations');
+  ///     // Continue with media operations
+  ///   } else {
+  ///     print('Permission denied, showing error message');
+  ///     // Show error or request again
+  ///   }
+  /// }
+  /// ```
+
+  Future<bool> requestMacStoragePermission() {
+    return MediaManagerPlatform.instance.requestMacStoragePermission();
   }
 
   /// Retrieves all image files from device storage.

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
 import 'media_manager_platform_interface.dart';
 
 /// The platform-specific implementation of MediaManager using method channels.
@@ -101,6 +102,25 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
   Future<bool> requestStoragePermission() async {
     final bool result = await methodChannel.invokeMethod(
       'requestStoragePermission',
+    );
+    return result;
+  }
+
+  /// Requests Mac storage permission from the user.
+  /// Returns true if permission was granted.
+  ///  Example:
+  ///   ```dart
+  ///   bool granted = await MethodChannelMediaManager().requestMacStoragePermission();
+  ///
+  ///
+  ///   ```
+  ///  This method is specific to macOS and may not be available on other platforms.
+  ///  Ensure to check platform compatibility before using this method.
+
+  @override
+  Future<bool> requestMacStoragePermission() async {
+    final bool result = await methodChannel.invokeMethod(
+      'requestMacStoragePermission',
     );
     return result;
   }

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+
 import 'media_manager_method_channel.dart';
 
 /// The abstract base class for platform-specific implementations of media manager functionality.
@@ -113,6 +115,12 @@ abstract class MediaManagerPlatform extends PlatformInterface {
   Future<bool> requestStoragePermission() {
     throw UnimplementedError(
       'requestStoragePermission() has not been implemented.',
+    );
+  }
+
+  Future<bool> requestMacStoragePermission() {
+    throw UnimplementedError(
+      'requestMacStoragePermission() has not been implemented.',
     );
   }
 
