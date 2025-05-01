@@ -6,11 +6,11 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     private var scanCancelled = false
     private var scanInProgress = false
     private var methodChannel: FlutterMethodChannel?
-    
+
     // Permission constants
     private let permissionKey = "MediaManagerPermissionStatus"
     private var permissionBookmarks: [URL: Data] = [:]
-    
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "media_manager", binaryMessenger: registrar.messenger)
         let instance = MediaManagerPlugin()
@@ -18,7 +18,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         registrar.addMethodCallDelegate(instance, channel: channel)
         instance.loadSavedPermissions()
     }
-    
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "getPlatformVersion":
@@ -50,16 +50,26 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "clearImageCache":
             clearImageCache()
             result(true)
-            
+
         case "cancelFileSearch":
             cancelFileSearch()
             result(true)
 
         case "requestMacStoragePermission":
             requestMacStoragePermission(result: result)
-            
+
         case "checkPermissionStatus":
             checkPermissionStatus(result: result)
+
+        case "checkPathAccessibility":
+            if let args = call.arguments as? [String: Any],
+               let path = args["path"] as? String {
+                checkPathAccessibility(path: path, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_PATH",
+                                  message: "Invalid path",
+                                  details: nil))
+            }
 
         case "getAllImages":
             getAllFilesByType(result: result, extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"])
@@ -77,15 +87,15 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 "txt", "rtf", "odt", "ott", "odm", "oth",
                 "xml", "html", "htm", "xhtml", "mhtml",
                 "epub", "mobi", "azw", "fb2",
-                
+
                 // Spreadsheet formats
                 "xls", "xlsx", "xlsm", "xlsb", "xlt", "xltx", "xltm",
                 "ods", "ots", "csv",
-                
+
                 // Presentation formats
                 "ppt", "pptx", "pptm", "pps", "ppsx", "ppsm",
                 "pot", "potx", "potm", "odp", "otp",
-                
+
                 // Programming/Code files
                 "dart", "php", "js", "jsx", "ts", "tsx", "py", "java",
                 "kt", "kts", "cpp", "c", "h", "hpp", "cs", "go", "rb",
@@ -97,13 +107,13 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 "edn", "ex", "exs", "elm", "erl", "hrl", "fs", "fsx",
                 "fsi", "ml", "mli", "nim", "pde", "pp", "pas", "lisp",
                 "cl", "scm", "ss", "rkt", "st", "tcl", "vhd", "vhdl",
-                
+
                 // Web development
                 "vue", "svelte", "astro", "php", "phtml", "twig",
                 "mustache", "hbs", "ejs", "haml", "scss", "sass",
                 "less", "styl", "stylus", "coffee", "litcoffee",
                 "graphql", "gql", "wasm", "wat",
-                
+
                 // Other document formats
                 "md", "markdown", "tex", "log", "pages", "wpd", "wps",
                 "abw", "zabw", "123", "602", "wk1", "wk3", "wk4", "wq1",
@@ -119,7 +129,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     // MARK: - Permission Management
-    
+
     private func loadSavedPermissions() {
         if let savedBookmarks = UserDefaults.standard.dictionary(forKey: permissionKey) as? [String: Data] {
             for (urlString, bookmarkData) in savedBookmarks {
@@ -128,11 +138,11 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 }
             }
         }
-        
+
         // Start access to all stored permission bookmarks
         reestablishPermissionAccess()
     }
-    
+
     private func savePermissions() {
         var bookmarkDict: [String: Data] = [:]
         for (url, data) in permissionBookmarks {
@@ -140,16 +150,16 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         }
         UserDefaults.standard.set(bookmarkDict, forKey: permissionKey)
     }
-    
+
     private func reestablishPermissionAccess() {
         for (url, bookmarkData) in permissionBookmarks {
             var isStale = false
             do {
-                _ = try URL(resolvingBookmarkData: bookmarkData, 
+                _ = try URL(resolvingBookmarkData: bookmarkData,
                          options: .withSecurityScope,
                          relativeTo: nil,
                          bookmarkDataIsStale: &isStale)
-                
+
                 if isStale {
                     // If stale, we'll need to create a new bookmark
                     if url.startAccessingSecurityScopedResource() {
@@ -163,11 +173,11 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 permissionBookmarks.removeValue(forKey: url)
             }
         }
-        
+
         // Save any changes made during restoration
         savePermissions()
     }
-    
+
     private func createAndSaveBookmark(for url: URL) -> Bool {
         do {
             let bookmarkData = try url.bookmarkData(options: .withSecurityScope,
@@ -181,66 +191,287 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             return false
         }
     }
-    
+
+    /**
+     * Checks the status of storage permissions.
+     *
+     * Returns detailed information about all granted permissions, including:
+     * - Whether any permissions exist
+     * - List of accessible paths with details about each path:
+     *   - path: The path that is accessible
+     *   - canWrite: Whether write permission is available
+     *   - isValid: Whether the security-scoped bookmark is still valid
+     */
     private func checkPermissionStatus(result: @escaping FlutterResult) {
         let hasPermissions = !permissionBookmarks.isEmpty
-        
-        var accessiblePaths: [String] = []
-        for (url, _) in permissionBookmarks {
+
+        var accessiblePaths: [[String: Any]] = []
+        for (url, bookmarkData) in permissionBookmarks {
+            var isStale = false
+            var isValid = false
+
+            // Try to resolve the bookmark to check if it's still valid
+            do {
+                _ = try URL(resolvingBookmarkData: bookmarkData,
+                         options: .withSecurityScope,
+                         relativeTo: nil,
+                         bookmarkDataIsStale: &isStale)
+                isValid = true
+            } catch {
+                isValid = false
+            }
+
+            // Check if we can access the path
             if url.startAccessingSecurityScopedResource() {
-                accessiblePaths.append(url.path)
+                // Check write permission
+                let canWrite = checkWritePermission(for: url.path)
+
+                // Add path details
+                accessiblePaths.append([
+                    "path": url.path,
+                    "canWrite": canWrite,
+                    "isValid": isValid,
+                    "isStale": isStale
+                ])
+
                 url.stopAccessingSecurityScopedResource()
+            } else {
+                // Path is no longer accessible
+                accessiblePaths.append([
+                    "path": url.path,
+                    "canWrite": false,
+                    "isValid": false,
+                    "isStale": true
+                ])
             }
         }
-        
+
         let response: [String: Any] = [
             "hasPermissions": hasPermissions,
             "paths": accessiblePaths
         ]
-        
+
         result(response)
     }
-    
+
+    /**
+     * Requests permission to access files and directories on macOS.
+     *
+     * This method shows a folder picker dialog that allows the user to select a folder
+     * to grant read/write access to. The method creates a security-scoped bookmark for
+     * the selected folder, which allows the app to maintain access to the folder even
+     * after the app is restarted.
+     *
+     * The result contains:
+     * - granted: Boolean indicating if permission was granted
+     * - path: String path of the selected folder (if granted)
+     * - permanent: Boolean indicating if the permission is permanent (via security-scoped bookmark)
+     * - canWrite: Boolean indicating if write access is available
+     */
     private func requestMacStoragePermission(result: @escaping FlutterResult) {
         DispatchQueue.main.async {
             let openPanel = NSOpenPanel()
             openPanel.canChooseDirectories = true
             openPanel.canChooseFiles = false
-            openPanel.allowsMultipleSelection = false
-            openPanel.message = "Please select a folder to grant access permissions"
+            openPanel.allowsMultipleSelection = true // Allow multiple folder selection
+            openPanel.message = "Please select folders to grant access permissions"
             openPanel.prompt = "Grant Access"
-            
+            openPanel.title = "Media Manager - Folder Access"
+
+            // Show the panel
             openPanel.begin { [weak self] response in
                 guard let self = self else { return }
-                
+
                 if response == .OK {
-                    if let url = openPanel.url {
+                    var successfulPaths: [[String: Any]] = []
+                    let urls = openPanel.urls
+
+                    if urls.isEmpty {
+                        result(["granted": false, "message": "No folders were selected"])
+                        return
+                    }
+
+                    for url in urls {
                         // Start accessing the resource with security scope
-                        if url.startAccessingSecurityScopedResource() {
+                        let canAccess = url.startAccessingSecurityScopedResource()
+
+                        if canAccess {
                             // Create and store the security-scoped bookmark
                             let success = self.createAndSaveBookmark(for: url)
-                            
+
+                            // Check write permission
+                            let canWrite = self.checkWritePermission(for: url.path)
+
+                            // Add to successful paths
+                            successfulPaths.append([
+                                "path": url.path,
+                                "permanent": success,
+                                "canWrite": canWrite
+                            ])
+
                             // Stop accessing the resource
                             url.stopAccessingSecurityScopedResource()
-                            
-                            result([
-                                "granted": success,
-                                "path": url.path,
-                                "permanent": true
-                            ])
                         } else {
-                            result([
-                                "granted": true,
+                            // Could access but not permanently
+                            successfulPaths.append([
                                 "path": url.path,
-                                "permanent": false
+                                "permanent": false,
+                                "canWrite": false
                             ])
                         }
+                    }
+
+                    // Return results
+                    if successfulPaths.isEmpty {
+                        result(["granted": false, "message": "Failed to access selected folders"])
                     } else {
-                        result(["granted": false])
+                        result([
+                            "granted": true,
+                            "paths": successfulPaths
+                        ])
                     }
                 } else {
-                    result(["granted": false])
+                    // User cancelled
+                    result(["granted": false, "message": "User cancelled the permission request"])
                 }
+            }
+        }
+    }
+
+    /**
+     * Checks if write permission is available for the specified path.
+     *
+     * @param path The path to check for write permission
+     * @return true if write permission is available, false otherwise
+     */
+    private func checkWritePermission(for path: String) -> Bool {
+        let testFilePath = (path as NSString).appendingPathComponent(".media_manager_write_test")
+        let fileManager = FileManager.default
+
+        // Try to create a test file
+        if fileManager.createFile(atPath: testFilePath, contents: Data(), attributes: nil) {
+            // If successful, remove the test file
+            do {
+                try fileManager.removeItem(atPath: testFilePath)
+                return true
+            } catch {
+                print("Could create test file but failed to delete it: \(error)")
+                return true // Still return true since we could write
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Checks if a specific path is accessible with current permissions.
+     *
+     * @param path The path to check for accessibility
+     * @return true if the path is accessible, false otherwise
+     */
+    private func isPathAccessible(_ path: String) -> Bool {
+        let url = URL(fileURLWithPath: path)
+
+        // Check if any of our bookmarks cover this path
+        for (bookmarkURL, _) in permissionBookmarks {
+            if path.hasPrefix(bookmarkURL.path) {
+                if bookmarkURL.startAccessingSecurityScopedResource() {
+                    defer {
+                        bookmarkURL.stopAccessingSecurityScopedResource()
+                    }
+                    return FileManager.default.isReadableFile(atPath: path)
+                }
+            }
+        }
+
+        // If no bookmark covers this path, check if it's readable directly
+        return FileManager.default.isReadableFile(atPath: path)
+    }
+
+    /**
+     * Checks if a specific path is accessible and returns detailed information.
+     *
+     * This method is exposed to Flutter and provides information about:
+     * - Whether the path is accessible (readable)
+     * - Whether the path is writable
+     * - Which permission bookmark is providing access (if any)
+     *
+     * @param path The path to check
+     * @param result The Flutter result callback
+     */
+    private func checkPathAccessibility(path: String, result: @escaping FlutterResult) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fileManager = FileManager.default
+            let url = URL(fileURLWithPath: path)
+
+            // Default values
+            var isAccessible = false
+            var isWritable = false
+            var permissionSource: String? = nil
+            var needsPermission = false
+
+            // First check if the file exists
+            let fileExists = fileManager.fileExists(atPath: path)
+
+            // Check if any of our bookmarks cover this path
+            var usedSecurityScope = false
+            for (bookmarkURL, _) in self.permissionBookmarks where path.hasPrefix(bookmarkURL.path) {
+                if bookmarkURL.startAccessingSecurityScopedResource() {
+                    usedSecurityScope = true
+                    permissionSource = bookmarkURL.path
+
+                    // Check read access
+                    isAccessible = fileExists && fileManager.isReadableFile(atPath: path)
+
+                    // Check write access if the file exists
+                    if fileExists {
+                        isWritable = fileManager.isWritableFile(atPath: path)
+                    } else {
+                        // For directories that don't exist, try to check parent directory
+                        let parentPath = (path as NSString).deletingLastPathComponent
+                        if fileManager.fileExists(atPath: parentPath) {
+                            isWritable = fileManager.isWritableFile(atPath: parentPath)
+                        }
+                    }
+
+                    bookmarkURL.stopAccessingSecurityScopedResource()
+                    break
+                }
+            }
+
+            // If no security scope was used, check direct access
+            if !usedSecurityScope {
+                if fileExists {
+                    isAccessible = fileManager.isReadableFile(atPath: path)
+                    isWritable = fileManager.isWritableFile(atPath: path)
+                    permissionSource = "direct"
+                } else {
+                    // For directories that don't exist, try to check parent directory
+                    let parentPath = (path as NSString).deletingLastPathComponent
+                    if fileManager.fileExists(atPath: parentPath) {
+                        isAccessible = fileManager.isReadableFile(atPath: parentPath)
+                        isWritable = fileManager.isWritableFile(atPath: parentPath)
+                        permissionSource = "direct"
+                    }
+                }
+
+                // Check if this path would need permission (outside user directory)
+                let homePath = fileManager.homeDirectoryForCurrentUser.path
+                needsPermission = !path.hasPrefix(homePath) || path.contains("/Library/") || path.contains("/Applications/")
+            }
+
+            // Prepare result
+            let response: [String: Any] = [
+                "path": path,
+                "exists": fileExists,
+                "isAccessible": isAccessible,
+                "isWritable": isWritable,
+                "permissionSource": permissionSource ?? "none",
+                "needsPermission": needsPermission
+            ]
+
+            DispatchQueue.main.async {
+                result(response)
             }
         }
     }
@@ -281,7 +512,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         DispatchQueue.global(qos: .userInitiated).async {
             let fileManager = FileManager.default
             let directoryURL = URL(fileURLWithPath: path)
-            
+
             // Check if we need to use security-scoped access
             var usingSecurityScope = false
             for (url, _) in self.permissionBookmarks where directoryURL.path.hasPrefix(url.path) {
@@ -304,7 +535,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                     }
                     return
                 }
-                
+
                 // Only using fileSizeKey to avoid macOS version compatibility issues
                 let contents = try fileManager.contentsOfDirectory(at: directoryURL,
                                                                 includingPropertiesForKeys: [.fileSizeKey, .creationDateKey, .contentModificationDateKey],
@@ -315,20 +546,20 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                     guard fileManager.isReadableFile(atPath: url.path) else {
                         return nil
                     }
-                    
+
                     let isDirectory = url.hasDirectoryPath
                     var fileSize: Int64 = 0
-                    
+
                     do {
                         let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
                         fileSize = Int64(resourceValues.fileSize ?? 0)
                     } catch {
                         print("Error getting file size: \(error)")
                     }
-                    
+
                     let fileExt = url.pathExtension.lowercased()
                     var lastModified: TimeInterval = 0
-                    
+
                     do {
                         // Try content modification date first, fall back to creation date
                         let resourceValues = try url.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
@@ -391,7 +622,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 }
                 return
             }
-            
+
             // Load and process image
             if let image = NSImage(contentsOfFile: path) {
                 let resizedImage = self.resizeImage(image, targetSize: NSSize(width: 800, height: 800))
@@ -430,7 +661,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     private func clearImageCache() {
         imageCache.removeAllObjects()
     }
-    
+
     private func cancelFileSearch() {
         scanCancelled = true
     }
@@ -443,10 +674,10 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                               details: nil))
             return
         }
-        
+
         scanInProgress = true
         scanCancelled = false
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             // Instead of starting from the home directory, ask user to choose directory
             DispatchQueue.main.sync {
@@ -456,10 +687,10 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 openPanel.allowsMultipleSelection = false
                 openPanel.message = "Please select a folder to search for files"
                 openPanel.prompt = "Search"
-                
+
                 openPanel.begin { [weak self] response in
                     guard let self = self else { return }
-                    
+
                     if response == .OK, let startURL = openPanel.url {
                         // Try to use security-scoped resource access if available
                         var usingSecurityScope = false
@@ -473,12 +704,12 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                             }
                             break
                         }
-                        
+
                         // If no security scope was used, proceed normally
                         if !usingSecurityScope {
                             self.performFileSearch(startURL: startURL, extensions: extensions, result: result)
                         }
-                        
+
                     } else {
                         self.scanInProgress = false
                         result([]) // Return empty array if user cancels
@@ -487,29 +718,29 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             }
         }
     }
-    
+
     private func performFileSearch(startURL: URL, extensions: [String], result: @escaping FlutterResult) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
-            
+
             let fileManager = FileManager.default
             var files: [String] = []
             let maxDepth = 10 // Limit search depth
             let maxFiles = 1000 // Limit number of files
             var filesFound = 0
             var lastProgressUpdate = Date()
-            
+
             func scanDirectory(_ url: URL, depth: Int) {
                 // Check if scan was cancelled
                 if self.scanCancelled || filesFound >= maxFiles {
                     return
                 }
-                
+
                 // If we've reached max depth, return
                 if depth > maxDepth {
                     return
                 }
-                
+
                 // Send progress update every 0.5 seconds
                 let now = Date()
                 if now.timeIntervalSince(lastProgressUpdate) > 0.5 {
@@ -521,29 +752,29 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                         ])
                     }
                 }
-                
+
                 do {
                     // Check if directory is readable
                     guard fileManager.isReadableFile(atPath: url.path) else {
                         return
                     }
-                    
+
                     let contents = try fileManager.contentsOfDirectory(at: url,
                                                                    includingPropertiesForKeys: nil,
                                                                    options: [.skipsHiddenFiles])
-                    
+
                     for item in contents {
                         // Check if scan was cancelled
                         if self.scanCancelled || filesFound >= maxFiles {
                             return
                         }
-                        
+
                         // Check files and add to results
                         if !item.hasDirectoryPath {
                             if extensions.contains(item.pathExtension.lowercased()) {
                                 files.append(item.path)
                                 filesFound += 1
-                                
+
                                 // Batch send results every 20 files
                                 if filesFound % 20 == 0 {
                                     let currentBatch = Array(files[(filesFound - 20)..<filesFound])
@@ -564,11 +795,11 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                     print("Error scanning directory \(url.path): \(error.localizedDescription)")
                 }
             }
-            
+
             scanDirectory(startURL, depth: 0)
-            
+
             self.scanInProgress = false
-            
+
             DispatchQueue.main.async {
                 if self.scanCancelled {
                     result(FlutterError(code: "SCAN_CANCELLED",
