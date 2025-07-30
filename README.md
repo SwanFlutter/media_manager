@@ -57,11 +57,7 @@ Add this to your package's `pubspec.yaml` file:
 ```yaml
 
 dependencies:
-<<<<<<< HEAD
   media_manager: ^0.0.4
-=======
-  media_manager: ^0.0.3
->>>>>>> b22c9193d7098db6420271655621aee7184d2ee0
 
 ```
 
@@ -263,7 +259,6 @@ void findArchives() async {
 }
 ```
 
-<<<<<<< HEAD
 ### Gets a thumbnail/preview of a video file as a byte array.
 
 ```dart
@@ -297,8 +292,6 @@ bool success = await mediaManager.clearVideoThumbnailCache();
 ```
 
 
-=======
->>>>>>> b22c9193d7098db6420271655621aee7184d2ee0
 ## Complete Example
 
 Here's a complete example showing how to use the plugin in a Flutter app:
@@ -489,8 +482,5 @@ try {
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-<<<<<<< HEAD
 
 
-=======
->>>>>>> b22c9193d7098db6420271655621aee7184d2ee0

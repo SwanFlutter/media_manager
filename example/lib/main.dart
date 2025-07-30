@@ -65,6 +65,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
   Future<void> _loadDirectories() async {
     try {
       final directories = await _mediaManager.getDirectories();
+
       setState(() {
         _directories = directories;
       });
@@ -548,14 +549,14 @@ class _MediaTabState extends State<MediaTab>
           return ListTile(
             leading: cover != null
                 ? ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.memory(
-                cover,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-              ),
-            )
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.memory(
+                      cover,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                    ),
+                  )
                 : const Icon(Icons.audio_file),
             title: Text(fileName),
             subtitle: Text(path),
@@ -601,7 +602,6 @@ class _MediaTabState extends State<MediaTab>
       );
     }
   }
-
 
   Widget _getMediaIcon() {
     switch (widget.mediaType) {
