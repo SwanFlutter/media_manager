@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import AVFoundation
 
 public class MediaManagerPlugin: NSObject, FlutterPlugin {
     private var imageCache = NSCache<NSString, NSImage>()
@@ -61,11 +62,12 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                                   details: nil))
             }
         case "getAllImages":
-            getAllFilesByType(result: result, extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"])
+            getAllFilesByType(result: result, extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"], isAudio: false)
         case "getAllVideos":
-            getAllFilesByType(result: result, extensions: ["mp4", "mov", "m4v"])
+            getAllFilesByType(result: result, extensions: ["mp4", "mov", "m4v"], isAudio: false)
         case "getAllAudio":
-            getAllFilesByType(result: result, extensions: ["mp3", "wav", "m4a"])
+            // ✅ اضافه کردن پشتیبانی کاور برای فایل‌های صوتی
+            getAllFilesByType(result: result, extensions: ["mp3", "wav", "m4a", "aac", "ogg", "flac"], isAudio: true)
         case "getAllDocuments":
             getAllFilesByType(result: result, extensions: [
                 "pdf", "doc", "docx", "docm", "dot", "dotx", "dotm",
@@ -93,13 +95,15 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                 "md", "markdown", "tex", "log", "pages", "wpd", "wps",
                 "abw", "zabw", "123", "602", "wk1", "wk3", "wk4", "wq1",
                 "wq2", "xlw", "pmd", "sxw", "stw", "vor", "sxg", "otg"
-            ])
+            ], isAudio: false)
         case "getAllZipFiles":
-            getAllFilesByType(result: result, extensions: ["zip", "rar"])
+            getAllFilesByType(result: result, extensions: ["zip", "rar"], isAudio: false)
         default:
             result(FlutterMethodNotImplemented)
         }
     }
+
+    // ... [همه متدهای permission و directory به همان شکل قبلی] ...
 
     private func loadSavedPermissions() {
         if let savedBookmarks = UserDefaults.standard.dictionary(forKey: permissionKey) as? [String: Data] {
@@ -261,19 +265,6 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             }
         }
         return false
-    }
-
-    private func isPathAccessible(_ path: String) -> Bool {
-        let url = URL(fileURLWithPath: path)
-        for (bookmarkURL, _) in permissionBookmarks {
-            if path.hasPrefix(bookmarkURL.path) {
-                if bookmarkURL.startAccessingSecurityScopedResource() {
-                    defer { bookmarkURL.stopAccessingSecurityScopedResource() }
-                    return FileManager.default.isReadableFile(atPath: path)
-                }
-            }
-        }
-        return FileManager.default.isReadableFile(atPath: path)
     }
 
     private func checkPathAccessibility(path: String, result: @escaping FlutterResult) {
@@ -498,7 +489,8 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         scanCancelled = true
     }
 
-    private func getAllFilesByType(result: @escaping FlutterResult, extensions: [String]) {
+    // ✅ متد اصلی با پشتیبانی کاور
+    private func getAllFilesByType(result: @escaping FlutterResult, extensions: [String], isAudio: Bool) {
         guard !scanInProgress else {
             result(FlutterError(code: "SCAN_IN_PROGRESS",
                               message: "A file scan is already in progress",
@@ -522,13 +514,13 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                         for (url, _) in self.permissionBookmarks where startURL.path.hasPrefix(url.path) {
                             usingSecurityScope = url.startAccessingSecurityScopedResource()
                             if usingSecurityScope {
-                                self.performFileSearch(startURL: startURL, extensions: extensions, result: result)
+                                self.performFileSearch(startURL: startURL, extensions: extensions, result: result, isAudio: isAudio)
                                 url.stopAccessingSecurityScopedResource()
                             }
                             break
                         }
                         if !usingSecurityScope {
-                            self.performFileSearch(startURL: startURL, extensions: extensions, result: result)
+                            self.performFileSearch(startURL: startURL, extensions: extensions, result: result, isAudio: isAudio)
                         }
                     } else {
                         self.scanInProgress = false
@@ -539,15 +531,17 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func performFileSearch(startURL: URL, extensions: [String], result: @escaping FlutterResult) {
+    // ✅ متد جستجو با پشتیبانی کاور
+    private func performFileSearch(startURL: URL, extensions: [String], result: @escaping FlutterResult, isAudio: Bool) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             let fileManager = FileManager.default
-            var files: [String] = []
+            var files: [Any] = [] // ✅ تغییر از [String] به [Any]
             let maxDepth = 10
             let maxFiles = 1000
             var filesFound = 0
             var lastProgressUpdate = Date()
+            
             func scanDirectory(_ url: URL, depth: Int) {
                 if self.scanCancelled || filesFound >= maxFiles {
                     return
@@ -578,10 +572,35 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                         }
                         if !item.hasDirectoryPath {
                             if extensions.contains(item.pathExtension.lowercased()) {
-                                files.append(item.path)
+                                // ✅ اگر فایل صوتی است، کاور را استخراج کن
+                                if isAudio {
+                                    var coverData: Data? = nil
+                                    do {
+                                        let asset = AVAsset(url: item)
+                                        for meta in asset.commonMetadata {
+                                            if meta.commonKey?.rawValue == "artwork", let value = meta.value as? Data {
+                                                coverData = value
+                                                break
+                                            }
+                                        }
+                                    } catch {
+                                        coverData = nil
+                                    }
+                                    
+                                    files.append([
+                                        "path": item.path,
+                                        "cover": coverData != nil ? FlutterStandardTypedData(bytes: coverData!) : nil
+                                    ])
+                                } else {
+                                    // سایر فایل‌ها فقط مسیر را برگردانند
+                                    files.append(item.path)
+                                }
+                                
                                 filesFound += 1
                                 if filesFound % 20 == 0 {
-                                    let currentBatch = Array(files[(filesFound - 20)..<filesFound])
+                                    let startIndex = max(0, filesFound - 20)
+                                    let endIndex = min(files.count, filesFound)
+                                    let currentBatch = Array(files[startIndex..<endIndex])
                                     DispatchQueue.main.async {
                                         self.methodChannel?.invokeMethod("fileSearchBatchResult", arguments: currentBatch)
                                     }

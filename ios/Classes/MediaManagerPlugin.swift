@@ -416,38 +416,57 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func getAllFilesByType(result: @escaping FlutterResult, extensions: [String]) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            let fileManager = FileManager.default
-            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let homePath = documentsPath.deletingLastPathComponent()
+ private func getAllFilesByType(result: @escaping FlutterResult, extensions: [String]) {
+    DispatchQueue.global(qos: .userInitiated).async {
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let homePath = documentsPath.deletingLastPathComponent()
+        var files: [Any] = []
 
-            var files: [String] = []
+        func scanDirectory(_ url: URL) {
+            do {
+                let contents = try fileManager.contentsOfDirectory(at: url,
+                                                                  includingPropertiesForKeys: nil,
+                                                                  options: [.skipsHiddenFiles])
+                for item in contents {
+                    if item.hasDirectoryPath {
+                        scanDirectory(item)
+                    } else if extensions.contains(item.pathExtension.lowercased()) {
+                        if ["mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "opus"].contains(item.pathExtension.lowercased()) {
+                            var coverData: Data? = nil
+                            do {
+                                let asset = AVAsset(url: item)
+                                for meta in asset.commonMetadata {
+                                    if meta.commonKey?.rawValue == "artwork", let value = meta.value as? Data {
+                                        coverData = value
+                                        break
+                                    }
+                                }
+                            } catch {
+                                coverData = nil
+                            }
 
-            func scanDirectory(_ url: URL) {
-                do {
-                    let contents = try fileManager.contentsOfDirectory(at: url,
-                                                                      includingPropertiesForKeys: nil,
-                                                                      options: [.skipsHiddenFiles])
-
-                    for item in contents {
-                        if item.hasDirectoryPath {
-                            scanDirectory(item)
-                        } else if extensions.contains(item.pathExtension.lowercased()) {
+                            files.append([
+                                "path": item.path,
+                                "cover": coverData != nil ? FlutterStandardTypedData(bytes: coverData!) : nil
+                            ])
+                        } else {
                             files.append(item.path)
                         }
                     }
-                } catch {
-                    print("Error scanning directory: \(error.localizedDescription)")
                 }
-            }
-
-            scanDirectory(homePath)
-            DispatchQueue.main.async {
-                result(files)
+            } catch {
+                print("Error scanning directory: \(error.localizedDescription)")
             }
         }
+
+        scanDirectory(homePath)
+        DispatchQueue.main.async {
+            result(files)
+        }
     }
+}
+
 
     private func getFileType(_ fileExt: String) -> String {
         switch fileExt {

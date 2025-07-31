@@ -65,7 +65,6 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
   Future<void> _loadDirectories() async {
     try {
       final directories = await _mediaManager.getDirectories();
-
       setState(() {
         _directories = directories;
       });
@@ -545,7 +544,6 @@ class _MediaTabState extends State<MediaTab>
           final path = item['path'] as String;
           final fileName = path.split('/').last;
           final cover = item['cover'] as Uint8List?;
-
           return ListTile(
             leading: cover != null
                 ? ClipRRect(
