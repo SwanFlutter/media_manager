@@ -152,7 +152,7 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
   }
 
   /// Retrieves paths and covers of all audio files on device.
-  /// Returns List<Map<String, dynamic>> with keys 'path' and 'cover'.
+  /// Returns List< Map< String, dynamic >> with keys 'path' and 'cover'.
   @override
   Future<List<Map<String, dynamic>>> getAllAudio() async {
     final List<dynamic> result = await methodChannel.invokeMethod(

@@ -376,7 +376,7 @@ class _MediaTabState extends State<MediaTab>
       setState(() {
         _isLoading = false;
       });
-      print('MediaTab error: $e');
+      debugPrint('MediaTab error: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
