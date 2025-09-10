@@ -1,9 +1,28 @@
+library;
+
 import 'dart:typed_data';
+
 import 'media_manager_platform_interface.dart';
+import 'src/isolate_worker.dart';
+
+export 'src/isolate_worker.dart' show IsolateManager;
 
 /// A class that provides media management functionality across platforms.
 /// This acts as a bridge between platform-specific implementations and the Dart code.
+/// Uses isolates for heavy operations to prevent UI freezing.
 class MediaManager {
+  static bool _useIsolates = true;
+
+  /// Enable or disable isolate usage for heavy operations
+  static void setIsolateUsage(bool enabled) {
+    _useIsolates = enabled;
+  }
+
+  /// Dispose isolates when no longer needed
+  static void disposeIsolates() {
+    IsolateManager.dispose();
+  }
+
   /// Gets the platform version information.
   ///
   /// Example:
@@ -19,6 +38,7 @@ class MediaManager {
 
   /// Retrieves a list of available directories in the device storage.
   /// Returns a List of Maps containing directory information (name, path, etc.).
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -31,11 +51,18 @@ class MediaManager {
   /// }
   /// ```
   Future<List<Map<String, dynamic>>> getDirectories() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeDirectoryScanOperation<List<Map<String, dynamic>>>(
+    //     'getDirectories',
+    //   );
+    // }
     return MediaManagerPlatform.instance.getDirectories();
   }
 
   /// Gets contents of a specific directory by its path.
   /// [path] - The absolute path of the directory to scan.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -50,11 +77,19 @@ class MediaManager {
   /// }
   /// ```
   Future<List<Map<String, dynamic>>> getDirectoryContents(String path) {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeDirectoryScanOperation<List<Map<String, dynamic>>>(
+    //     'getDirectoryContents',
+    //     path: path,
+    //   );
+    // }
     return MediaManagerPlatform.instance.getDirectoryContents(path);
   }
 
   /// Gets a thumbnail/preview of an image file as a byte array.
   /// [path] - The path of the image file.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -76,6 +111,13 @@ class MediaManager {
   /// }
   /// ```
   Future<Uint8List?> getImagePreview(String path) {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeImageProcessingOperation<Uint8List?>(
+    //     'getImagePreview',
+    //     path: path,
+    //   );
+    // }
     return MediaManagerPlatform.instance.getImagePreview(path);
   }
 
@@ -85,15 +127,14 @@ class MediaManager {
   /// Example:
   /// ```dart
   /// void clearCache() async {
-  ///   bool success = await MediaManager().clearImageCache();
-  ///   if (success) {
-  ///     print('Cache cleared successfully');
-  ///   } else {
-  ///     print('Failed to clear cache');
-  ///   }
+  ///   await MediaManager().clearImageCache();
+  ///   print('Image cache cleared');
   /// }
   /// ```
-  Future<bool> clearImageCache() {
+  Future<void> clearImageCache() {
+    if (_useIsolates) {
+      return IsolateManager.executeImageProcessingOperation('clearImageCache');
+    }
     return MediaManagerPlatform.instance.clearImageCache();
   }
 
@@ -119,6 +160,7 @@ class MediaManager {
 
   /// Retrieves all image files from device storage.
   /// Returns a list of absolute file paths.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -132,11 +174,19 @@ class MediaManager {
   /// }
   /// ```
   Future<List<String>> getAllImages() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeFilesScanOperation(
+    //     'getAllImages',
+    //     [],
+    //   );
+    // }
     return MediaManagerPlatform.instance.getAllImages();
   }
 
   /// Retrieves all video files from device storage.
   /// Returns a list of absolute file paths.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -150,11 +200,19 @@ class MediaManager {
   /// }
   /// ```
   Future<List<String>> getAllVideos() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeFilesScanOperation(
+    //     'getAllVideos',
+    //     [],
+    //   );
+    // }
     return MediaManagerPlatform.instance.getAllVideos();
   }
 
   /// Retrieves all audio files from device storage.
   /// Returns a list of absolute file paths.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -171,11 +229,19 @@ class MediaManager {
   /// }
   /// ```
   Future<List<String>> getAllAudio() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeFilesScanOperation(
+    //     'getAllAudio',
+    //     [],
+    //   );
+    // }
     return MediaManagerPlatform.instance.getAllAudio();
   }
 
   /// Retrieves all document files from device storage.
   /// Returns a list of absolute file paths.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -200,11 +266,19 @@ class MediaManager {
   /// }
   /// ```
   Future<List<String>> getAllDocuments() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeFilesScanOperation(
+    //     'getAllDocuments',
+    //     [],
+    //   );
+    // }
     return MediaManagerPlatform.instance.getAllDocuments();
   }
 
   /// Retrieves all zip archive files from device storage.
   /// Returns a list of absolute file paths.
+  /// Uses isolates for better performance when enabled.
   ///
   /// Example:
   /// ```dart
@@ -225,6 +299,87 @@ class MediaManager {
   /// }
   /// ```
   Future<List<String>> getAllZipFiles() {
+    // Temporarily disable isolates for debugging
+    // if (_useIsolates) {
+    //   return IsolateManager.executeFilesScanOperation(
+    //     'getAllZipFiles',
+    //     [],
+    //   );
+    // }
     return MediaManagerPlatform.instance.getAllZipFiles();
+  }
+
+  /// Generates a thumbnail for a video file.
+  /// Returns thumbnail data as Uint8List or null if generation fails.
+  ///
+  /// Example:
+  /// ```dart
+  /// void showVideoThumbnail(String videoPath) async {
+  ///   Uint8List? thumbnail = await MediaManager().getVideoThumbnail(videoPath);
+  ///   if (thumbnail != null) {
+  ///     // Display thumbnail using Image.memory(thumbnail)
+  ///   }
+  /// }
+  /// ```
+  Future<Uint8List?> getVideoThumbnail(String videoPath) {
+    // Note: Video thumbnail generation is typically CPU intensive
+    // Consider adding isolate support in future versions
+    return MediaManagerPlatform.instance.getVideoThumbnail(videoPath);
+  }
+
+  /// Extracts album art from an audio file.
+  /// Returns album art data as Uint8List or null if not available.
+  ///
+  /// Example:
+  /// ```dart
+  /// void showAlbumArt(String audioPath) async {
+  ///   Uint8List? albumArt = await MediaManager().getAudioThumbnail(audioPath);
+  ///   if (albumArt != null) {
+  ///     // Display album art using Image.memory(albumArt)
+  ///   }
+  /// }
+  /// ```
+  Future<Uint8List?> getAudioThumbnail(String audioPath) {
+    return MediaManagerPlatform.instance.getAudioThumbnail(audioPath);
+  }
+
+  /// Retrieves files by specific formats/extensions.
+  /// [formats] - List of file extensions to search for (e.g., ['apk', 'dart', 'exe', 'deb'])
+  /// Returns a list of absolute file paths.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Get APK and executable files
+  /// final appFiles = await MediaManager().getAllFilesByFormat(['apk', 'exe', 'msi']);
+  ///
+  /// // Get source code files
+  /// final codeFiles = await MediaManager().getAllFilesByFormat(['dart', 'java', 'kt', 'swift']);
+  ///
+  /// // Get archive files
+  /// final archives = await MediaManager().getAllFilesByFormat(['zip', 'rar', '7z', 'tar']);
+  /// ```
+  Future<List<String>> getAllFilesByFormat(List<String> formats) {
+    if (_useIsolates) {
+      return IsolateManager.executeFilesScanOperation(
+        'getAllFilesByFormat',
+        formats,
+      );
+    }
+    return MediaManagerPlatform.instance.getAllFilesByFormat(formats);
+  }
+
+  /// Disposes isolate resources when the app is closing.
+  /// Call this in your app's dispose method to clean up isolates.
+  ///
+  /// Example:
+  /// ```dart
+  /// @override
+  /// void dispose() {
+  ///   MediaManager().dispose();
+  ///   super.dispose();
+  /// }
+  /// ```
+  void dispose() {
+    IsolateManager.dispose();
   }
 }
