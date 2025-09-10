@@ -175,4 +175,35 @@ abstract class MediaManagerPlatform extends PlatformInterface {
   Future<List<String>> getAllZipFiles() {
     throw UnimplementedError('getAllZipFiles() has not been implemented.');
   }
+
+  /// Generates a thumbnail for a video file.
+  ///
+  /// Returns thumbnail data as Uint8List or null if generation fails
+  ///
+  /// Example:
+  /// ```dart
+  /// final thumbnail = await MediaManagerPlatform.instance.getVideoThumbnail('/path/to/video.mp4');
+  /// ```
+  Future<Uint8List?> getVideoThumbnail(String videoPath) {
+    throw UnimplementedError('getVideoThumbnail() has not been implemented.');
+  }
+
+  /// Extracts album art from an audio file.
+  ///
+  /// Returns album art data as Uint8List or null if not available
+  ///
+  /// Example:
+  /// ```dart
+  /// final albumArt = await MediaManagerPlatform.instance.getAudioThumbnail('/path/to/audio.mp3');
+  /// ```
+  Future<Uint8List?> getAudioThumbnail(String audioPath) {
+    throw UnimplementedError('getAudioThumbnail() has not been implemented.');
+  }
+
+  /// Retrieves files by specific formats/extensions.
+  /// [formats] - List of file extensions to search for (e.g., ['apk', 'dart', 'exe'])
+  /// Returns a list of absolute file paths.
+  Future<List<String>> getAllFilesByFormat(List<String> formats) {
+    throw UnimplementedError('getAllFilesByFormat() has not been implemented.');
+  }
 }

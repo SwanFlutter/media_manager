@@ -1,6 +1,6 @@
-# media_manager_example
+# example
 
-Demonstrates how to use the media_manager plugin.
+A new Flutter project.
 
 ## Getting Started
 

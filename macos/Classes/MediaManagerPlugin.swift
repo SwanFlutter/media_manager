@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import AVFoundation
 
 public class MediaManagerPlugin: NSObject, FlutterPlugin {
     private var imageCache = NSCache<NSString, NSImage>()
@@ -104,7 +105,37 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             ])
 
         case "getAllZipFiles":
-            getAllFilesByType(result: result, extensions: ["zip", "rar"])
+            getAllFilesByType(result: result, extensions: ["zip", "rar", "7z", "tar", "gz", "bz2", "xz"])
+
+        case "getAllFilesByFormat":
+            if let args = call.arguments as? [String: Any],
+               let formats = args["formats"] as? [String] {
+                getAllFilesByType(result: result, extensions: formats)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENT",
+                                  message: "File formats list is required",
+                                  details: nil))
+            }
+
+        case "getVideoThumbnail":
+            if let args = call.arguments as? [String: Any],
+               let path = args["path"] as? String {
+                getVideoThumbnail(path: path, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_PATH",
+                                  message: "Invalid video path",
+                                  details: nil))
+            }
+
+        case "getAudioThumbnail":
+            if let args = call.arguments as? [String: Any],
+               let path = args["path"] as? String {
+                getAudioThumbnail(path: path, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_PATH",
+                                  message: "Invalid audio path",
+                                  details: nil))
+            }
 
         default:
             result(FlutterMethodNotImplemented)
@@ -490,11 +521,5 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
 
         let newSize = NSSize(width: size.width * ratio, height: size.height * ratio)
         let newImage = NSImage(size: newSize)
-
-        newImage.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: newSize))
-        newImage.unlockFocus()
-
-        return newImage
     }
 }

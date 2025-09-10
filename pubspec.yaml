@@ -1,6 +1,6 @@
 name: media_manager
-description: "A Flutter plugin for managing media files and directories across multiple platforms."
-version: 0.0.3
+description: "A comprehensive Flutter plugin for managing media files across Android (up to API 36), iOS (up to 18.0), and macOS (up to 15.0) platforms with enhanced performance and latest OS compatibility."
+version: 0.0.4
 homepage: "https://github.com/SwanFlutter/media_manager"
 
 environment:
@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  plugin_platform_interface: ^2.0.2
+  plugin_platform_interface: ^2.1.8
 
 dev_dependencies:
   flutter_test:

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
 import 'media_manager_platform_interface.dart';
 
 /// The platform-specific implementation of MediaManager using method channels.
@@ -173,5 +174,55 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
       'getAllZipFiles',
     );
     return result.cast<String>();
+  }
+
+  /// Generates a thumbnail for a video file.
+  /// [videoPath] - The path of the video file.
+  /// Returns Uint8List containing thumbnail data or null if generation fails.
+  /// Example:
+  /// ```dart
+  /// Uint8List? thumbnail = await MethodChannelMediaManager().getVideoThumbnail('/path/to/video.mp4');
+  /// ```
+  @override
+  Future<Uint8List?> getVideoThumbnail(String videoPath) async {
+    final Uint8List? data = await methodChannel.invokeMethod(
+      'getVideoThumbnail',
+      {'path': videoPath},
+    );
+    return data;
+  }
+
+  /// Extracts album art from an audio file.
+  /// [audioPath] - The path of the audio file.
+  /// Returns Uint8List containing album art data or null if not available.
+  /// Example:
+  /// ```dart
+  /// Uint8List? albumArt = await MethodChannelMediaManager().getAudioThumbnail('/path/to/audio.mp3');
+  /// ```
+  @override
+  Future<Uint8List?> getAudioThumbnail(String audioPath) async {
+    final result = await methodChannel.invokeMethod<Uint8List>(
+      'getAudioThumbnail',
+      {'path': audioPath},
+    );
+    return result;
+  }
+
+  @override
+  Future<List<String>> getAllFilesByFormat(List<String> formats) async {
+    try {
+      final result = await methodChannel.invokeMethod<List<dynamic>>(
+        'getAllFilesByFormat',
+        {'formats': formats},
+      );
+      if (result != null) {
+        return result.cast<String>();
+      }
+      return [];
+    } catch (e) {
+      // Log error and return empty list
+      print('Error in getAllFilesByFormat: $e');
+      return [];
+    }
   }
 }

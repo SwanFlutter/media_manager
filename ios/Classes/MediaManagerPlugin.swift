@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Photos
+import AVFoundation
 
 public class MediaManagerPlugin: NSObject, FlutterPlugin {
     private var imageCache = NSCache<NSString, UIImage>()
@@ -9,6 +10,11 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "media_manager", binaryMessenger: registrar.messenger())
         let instance = MediaManagerPlugin()
+        
+        // Setup memory management for cache
+        instance.imageCache.countLimit = 50 // Maximum 50 cached images
+        instance.imageCache.totalCostLimit = 50 * 1024 * 1024 // 50MB limit
+        
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
@@ -51,10 +57,10 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             getAllFilesByType(result: result, extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "svg", "ico", "heif", "avif"])
 
         case "getAllVideos":
-            getAllFilesByType(result: result, extensions: ["mp4", "mov", "m4v", "avi", "mkv", "wmv", "flv", "webm"])
+            getAllFilesByType(result: result, extensions: ["mp4", "mov", "m4v", "avi", "mkv", "wmv", "flv", "webm", "3gp", "3g2", "mpg", "mpeg", "ts", "mts", "m2ts"])
 
         case "getAllAudio":
-            getAllFilesByType(result: result, extensions: ["mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "opus"])
+            getAllFilesByType(result: result, extensions: ["mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "opus", "aiff", "alac", "ape", "dsd", "dsf", "dff"])
 
         case "getAllDocuments":
             getAllFilesByType(
@@ -142,6 +148,36 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
 
         case "getAllZipFiles":
             getAllFilesByType(result: result, extensions: ["zip", "rar", "7z", "tar", "gz", "bz2", "xz"])
+
+        case "getAllFilesByFormat":
+            if let args = call.arguments as? [String: Any],
+               let formats = args["formats"] as? [String] {
+                getAllFilesByType(result: result, extensions: formats)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENT",
+                                  message: "File formats list is required",
+                                  details: nil))
+            }
+
+        case "getVideoThumbnail":
+            if let args = call.arguments as? [String: Any],
+               let path = args["path"] as? String {
+                getVideoThumbnail(path: path, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_PATH",
+                                  message: "Invalid video path",
+                                  details: nil))
+            }
+
+        case "getAudioThumbnail":
+            if let args = call.arguments as? [String: Any],
+               let path = args["path"] as? String {
+                getAudioThumbnail(path: path, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_PATH",
+                                  message: "Invalid audio path",
+                                  details: nil))
+            }
 
         default:
             result(FlutterMethodNotImplemented)
@@ -354,24 +390,91 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             unitIndex += 1
         }
 
-        return String(format: "%.2f %@", fileSize, units[unitIndex])
+        return String(format: "%.1f %@", fileSize, units[unitIndex])
     }
 
     private func resizeImage(_ image: UIImage, targetSize: CGSize) -> UIImage {
         let size = image.size
-        let widthRatio = targetSize.width / size.width
+
+        let widthRatio  = targetSize.width  / size.width
         let heightRatio = targetSize.height / size.height
-        let ratio = min(widthRatio, heightRatio)
 
-        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-        let rect = CGRect(origin: .zero, size: newSize)
+        // Figure out what our orientation is, and use that to form the rectangle
+        var newSize: CGSize
+        if(widthRatio > heightRatio) {
+            newSize = CGSize(width: size.width * heightRatio, height: size.height * heightRatio)
+        } else {
+            newSize = CGSize(width: size.width * widthRatio,  height: size.height * widthRatio)
+        }
 
+        // This is the rect that we've calculated out and this is what is actually used below
+        let rect = CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height)
+
+        // Actually do the resizing to the rect using the ImageContext stuff
         UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
         image.draw(in: rect)
         let newImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
 
-        return newImage ?? image
+        return newImage!
+    }
+
+    private func getVideoThumbnail(path: String, result: @escaping FlutterResult) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let url = URL(fileURLWithPath: path)
+            let asset = AVAsset(url: url)
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            
+            let time = CMTime(seconds: 1, preferredTimescale: 60)
+            
+            do {
+                let cgImage = try imageGenerator.copyCGImage(at: time, actualTime: nil)
+                let image = UIImage(cgImage: cgImage)
+                
+                if let imageData = image.jpegData(compressionQuality: 0.8) {
+                    DispatchQueue.main.async {
+                        result(imageData)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        result(FlutterError(code: "THUMBNAIL_COMPRESSION_ERROR",
+                                          message: "Failed to compress video thumbnail",
+                                          details: nil))
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    result(FlutterError(code: "THUMBNAIL_GENERATION_ERROR",
+                                      message: "Failed to generate video thumbnail: \(error.localizedDescription)",
+                                      details: nil))
+                }
+            }
+        }
+    }
+
+    private func getAudioThumbnail(path: String, result: @escaping FlutterResult) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let url = URL(fileURLWithPath: path)
+            let asset = AVAsset(url: url)
+            
+            // Try to get artwork from metadata
+            for item in asset.commonMetadata {
+                if item.commonKey == .commonKeyArtwork {
+                    if let data = item.dataValue {
+                        DispatchQueue.main.async {
+                            result(data)
+                        }
+                        return
+                    }
+                }
+            }
+            
+            // No artwork found
+            DispatchQueue.main.async {
+                result(nil)
+            }
+        }
     }
 }
 

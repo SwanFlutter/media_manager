@@ -14,61 +14,79 @@ class MockMediaManagerPlatform
 
   @override
   Future<bool> clearImageCache() {
-    // TODO: implement clearImageCache
+  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllAudio() {
-    // TODO: implement getAllAudio
+   
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllDocuments() {
-    // TODO: implement getAllDocuments
+  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllImages() {
-    // TODO: implement getAllImages
+  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllVideos() {
-    // TODO: implement getAllVideos
+  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllZipFiles() {
-    // TODO: implement getAllZipFiles
+   
     throw UnimplementedError();
   }
 
   @override
   Future<List<Map<String, dynamic>>> getDirectories() {
-    // TODO: implement getDirectories
+ 
     throw UnimplementedError();
   }
 
   @override
   Future<List<Map<String, dynamic>>> getDirectoryContents(String path) {
-    // TODO: implement getDirectoryContents
+  
     throw UnimplementedError();
   }
 
   @override
   Future<Uint8List?> getImagePreview(String path) {
-    // TODO: implement getImagePreview
+  
     throw UnimplementedError();
   }
 
   @override
   Future<bool> requestStoragePermission() {
-    // TODO: implement requestStoragePermission
+  
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<Uint8List?> getVideoThumbnail(String videoPath) {
+  
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<Uint8List?> getAudioThumbnail(String audioPath) {
+  
+    throw UnimplementedError();
+  }
+  
+  @override
+  Future<List<String>> getAllFilesByFormat(List<String> formats) {
+  
     throw UnimplementedError();
   }
 }
