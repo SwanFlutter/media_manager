@@ -14,79 +14,66 @@ class MockMediaManagerPlatform
 
   @override
   Future<bool> clearImageCache() {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllAudio() {
-   
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllDocuments() {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllImages() {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllVideos() {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<List<String>> getAllZipFiles() {
-   
     throw UnimplementedError();
   }
 
   @override
   Future<List<Map<String, dynamic>>> getDirectories() {
- 
     throw UnimplementedError();
   }
 
   @override
   Future<List<Map<String, dynamic>>> getDirectoryContents(String path) {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<Uint8List?> getImagePreview(String path) {
-  
     throw UnimplementedError();
   }
 
   @override
   Future<bool> requestStoragePermission() {
-  
     throw UnimplementedError();
   }
-  
+
   @override
   Future<Uint8List?> getVideoThumbnail(String videoPath) {
-  
     throw UnimplementedError();
   }
-  
+
   @override
   Future<Uint8List?> getAudioThumbnail(String audioPath) {
-  
     throw UnimplementedError();
   }
-  
+
   @override
   Future<List<String>> getAllFilesByFormat(List<String> formats) {
-  
     throw UnimplementedError();
   }
 }

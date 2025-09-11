@@ -459,29 +459,8 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     android.util.Log.d("MediaManager", "Android SDK: ${android.os.Build.VERSION.SDK_INT}")
     
     val permissions = when {
-      android.os.Build.VERSION.SDK_INT >= 36 -> {
-        // Android 16+ (API 36+) - Future enhanced permissions
-        android.util.Log.d("MediaManager", "Using Android 16+ future permissions")
-        arrayOf(
-          Manifest.permission.READ_MEDIA_IMAGES,
-          Manifest.permission.READ_MEDIA_VIDEO,
-          Manifest.permission.READ_MEDIA_AUDIO,
-          "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
-          "android.permission.ACCESS_MEDIA_LOCATION"
-        )
-      }
-      android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
-        // Android 14+ (API 34+) - Enhanced media permissions
-        android.util.Log.d("MediaManager", "Using Android 14+ enhanced permissions")
-        arrayOf(
-          Manifest.permission.READ_MEDIA_IMAGES,
-          Manifest.permission.READ_MEDIA_VIDEO,
-          Manifest.permission.READ_MEDIA_AUDIO,
-          "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
-        )
-      }
       android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU -> {
-        // Android 13 (API 33) - Granular media permissions
+        // Android 13+ (API 33+) - Granular media permissions
         android.util.Log.d("MediaManager", "Using Android 13+ granular permissions")
         arrayOf(
           Manifest.permission.READ_MEDIA_IMAGES,
@@ -580,48 +559,34 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         
         val files = mutableListOf<String>()
         
-        // Simple MediaStore query approach
-        try {
-          val projection = arrayOf(
-            MediaStore.Files.FileColumns.DATA,
-            MediaStore.Files.FileColumns.DISPLAY_NAME
-          )
-          val selection = buildSelectionForExtensions(extensions)
-          
-          android.util.Log.d("MediaManager", "MediaStore selection query: $selection")
-          
-          if (selection.isEmpty()) {
-            android.util.Log.w("MediaManager", "Empty selection query, returning empty list")
-            withContext(Dispatchers.Main) {
-              result.success(emptyList<String>())
-            }
-            return@launch
-          }
-          
-          val cursor = context.contentResolver.query(
-            MediaStore.Files.getContentUri("external"),
-            projection,
-            selection,
-            null,
-            "${MediaStore.Files.FileColumns.DISPLAY_NAME} ASC"
+        // Use IO dispatcher for file operations
+        withContext(Dispatchers.IO) {
+          // Check if these are document/code file extensions that need directory scanning
+          val documentExtensions = listOf(
+            "pdf", "doc", "docx", "txt", "rtf", "xls", "xlsx", "xlsm", "xlsb", "xlt", "xltx", "xltm",
+            "ods", "ots", "csv", "ppt", "pptx", "pptm", "pps", "ppsx", "ppsm", "pot", "potx", "potm",
+            "odp", "otp", "dart", "php", "js", "jsx", "ts", "tsx", "py", "java", "kt", "kts", "cpp",
+            "c", "h", "hpp", "cs", "go", "rb", "swift", "m", "mm", "sh", "bash", "ps1", "bat", "cmd",
+            "pl", "pm", "lua", "sql", "json", "yaml", "yml", "toml", "ini", "cfg", "conf", "gradle",
+            "properties", "asm", "s", "v", "vhdl", "verilog", "r", "d", "f", "f90", "coffee", "scala",
+            "groovy", "clj", "cljc", "cljs", "edn", "ex", "exs", "elm", "erl", "hrl", "fs", "fsx",
+            "fsi", "ml", "mli", "nim", "pde", "pp", "pas", "lisp", "cl", "scm", "ss", "rkt", "st",
+            "tcl", "vhd", "vue", "svelte", "astro", "phtml", "twig", "mustache", "hbs", "ejs",
+            "haml", "scss", "sass", "less", "styl", "stylus", "litcoffee", "graphql", "gql",
+            "wasm", "wat", "md", "markdown", "tex", "log", "pages", "wpd", "wps", "abw", "zabw"
           )
           
-          cursor?.use {
-            android.util.Log.d("MediaManager", "MediaStore cursor returned ${it.count} results")
-            val dataColumn = it.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
-            
-            while (it.moveToNext()) {
-              val filePath = it.getString(dataColumn)
-              if (filePath != null && File(filePath).exists()) {
-                files.add(filePath)
-                android.util.Log.v("MediaManager", "Added file: $filePath")
-              }
-            }
-          } ?: run {
-            android.util.Log.w("MediaManager", "MediaStore query returned null cursor")
+          val hasDocumentExtensions = extensions.any { it in documentExtensions }
+          
+          if (hasDocumentExtensions) {
+            android.util.Log.d("MediaManager", "Document extensions detected, using directory scanning")
+            // Use directory scanning for document files
+            scanDirectoriesForFiles(files, extensions)
+          } else {
+            android.util.Log.d("MediaManager", "Media extensions detected, using MediaStore")
+            // Use MediaStore for media files (images, videos, audio)
+            scanMediaStoreForFiles(files, extensions)
           }
-        } catch (e: Exception) {
-          android.util.Log.w("MediaManager", "MediaStore query failed: ${e.message}", e)
         }
 
         android.util.Log.i("MediaManager", "Total files found: ${files.size} for extensions: ${extensions.joinToString(", ")}")
@@ -638,26 +603,129 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
     job?.let { activeJobs.add(it) }
   }
+  
+  private suspend fun scanMediaStoreForFiles(files: MutableList<String>, extensions: List<String>) {
+    try {
+      val projection = arrayOf(
+        MediaStore.Files.FileColumns.DATA,
+        MediaStore.Files.FileColumns.DISPLAY_NAME
+      )
+      val selection = buildSelectionForExtensions(extensions)
+      
+      android.util.Log.d("MediaManager", "MediaStore selection query: $selection")
+      
+      if (selection.isEmpty()) {
+        android.util.Log.w("MediaManager", "Empty selection query, returning")
+        return
+      }
+      
+      val cursor = context.contentResolver.query(
+        MediaStore.Files.getContentUri("external"),
+        projection,
+        selection,
+        null,
+        "${MediaStore.Files.FileColumns.DISPLAY_NAME} ASC"
+      )
+      
+      cursor?.use {
+        android.util.Log.d("MediaManager", "MediaStore cursor returned ${it.count} results")
+        val dataColumn = it.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
+        
+        var processedCount = 0
+        while (it.moveToNext()) {
+          val filePath = it.getString(dataColumn)
+          if (filePath != null && File(filePath).exists()) {
+            files.add(filePath)
+            android.util.Log.v("MediaManager", "Added file: $filePath")
+          }
+          
+          // Yield control every 50 files to prevent ANR
+          processedCount++
+          if (processedCount % 50 == 0) {
+            yield()
+          }
+        }
+      } ?: run {
+        android.util.Log.w("MediaManager", "MediaStore query returned null cursor")
+      }
+    } catch (e: Exception) {
+      android.util.Log.w("MediaManager", "MediaStore query failed: ${e.message}", e)
+    }
+  }
+  
+  private suspend fun scanDirectoriesForFiles(files: MutableList<String>, extensions: List<String>) {
+    android.util.Log.d("MediaManager", "Starting directory scan for document files")
+    
+    // Common directories to scan for documents
+    val commonDirs = listOf(
+      Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+      Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+      File(Environment.getExternalStorageDirectory(), "Download"),
+      File(Environment.getExternalStorageDirectory(), "Documents"),
+      File(Environment.getExternalStorageDirectory(), "WhatsApp/Media/WhatsApp Documents"),
+      File(Environment.getExternalStorageDirectory(), "Telegram"),
+      File(Environment.getExternalStorageDirectory(), "AndroidIDEProjects"),
+      File(Environment.getExternalStorageDirectory(), "Android/data"),
+      Environment.getExternalStorageDirectory() // Root directory
+    )
+    
+    suspend fun scanDirectory(directory: File, maxDepth: Int = 3, currentDepth: Int = 0) {
+      if (currentDepth >= maxDepth) return
+      
+      try {
+        android.util.Log.d("MediaManager", "Scanning directory (depth $currentDepth): ${directory.absolutePath}")
+        val fileList = directory.listFiles()
+        
+        fileList?.forEach { file ->
+          // Yield control to avoid blocking
+          yield()
+          
+          if (file.isDirectory && currentDepth < maxDepth - 1) {
+            // Skip system directories to avoid scanning too much
+            if (!file.name.startsWith(".") && 
+                !file.name.equals("Android", ignoreCase = true) ||
+                file.absolutePath.contains("Documents") ||
+                file.absolutePath.contains("Download")) {
+              scanDirectory(file, maxDepth, currentDepth + 1)
+            }
+          } else if (file.isFile) {
+            val extension = file.extension.lowercase()
+            if (extensions.contains(extension)) {
+              if (!files.contains(file.absolutePath)) { // Avoid duplicates
+                files.add(file.absolutePath)
+                android.util.Log.i("MediaManager", "Found document file: ${file.name} (${file.absolutePath})")
+              }
+            }
+          }
+        }
+      } catch (e: SecurityException) {
+        android.util.Log.w("MediaManager", "Cannot access directory: ${directory.absolutePath} - ${e.message}")
+      } catch (e: Exception) {
+        android.util.Log.e("MediaManager", "Error scanning directory: ${directory.absolutePath}", e)
+      }
+    }
+    
+    commonDirs.forEach { dir ->
+      if (dir != null && dir.exists() && dir.canRead()) {
+        android.util.Log.d("MediaManager", "Scanning common directory: ${dir.absolutePath}")
+        scanDirectory(dir)
+      } else {
+        android.util.Log.w("MediaManager", "Cannot access directory: ${dir?.absolutePath ?: "null"}")
+      }
+    }
+    
+    android.util.Log.d("MediaManager", "Directory scan completed, found ${files.size} files")
+  }
 
-  private fun getAllZipFiles(): List<String> {
+  private suspend fun getAllZipFiles(): List<String> = withContext(Dispatchers.IO) {
     val zipFiles = mutableListOf<String>()
     
     android.util.Log.d("MediaManager", "Starting zip file scan on Android SDK: ${android.os.Build.VERSION.SDK_INT}")
     
     // Check permissions first - enhanced for newer Android versions
     val hasPermission = when {
-      android.os.Build.VERSION.SDK_INT >= 36 -> {
-        // Android 16+ permissions
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, "android.permission.READ_MEDIA_VISUAL_USER_SELECTED") == PackageManager.PERMISSION_GRANTED
-      }
-      android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> {
-        // Android 14+ permissions
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, "android.permission.READ_MEDIA_VISUAL_USER_SELECTED") == PackageManager.PERMISSION_GRANTED
-      }
       android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU -> {
-        // Android 13 permissions
+        // Android 13+ permissions
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
       }
       else -> {
@@ -668,7 +736,7 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     
     if (!hasPermission) {
       android.util.Log.w("MediaManager", "Storage permission not granted, cannot scan for zip files")
-      return zipFiles
+      return@withContext zipFiles
     }
     
     // First, try MediaStore approach for all versions
@@ -724,7 +792,7 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
       Environment.getExternalStorageDirectory() // Root directory for older Android
     )
     
-    fun scanDirectoryForZipFiles(directory: File, maxDepth: Int = 2, currentDepth: Int = 0) {
+    suspend fun scanDirectoryForZipFiles(directory: File, maxDepth: Int = 2, currentDepth: Int = 0) {
       if (currentDepth >= maxDepth) return
       
       try {
@@ -733,6 +801,9 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         android.util.Log.d("MediaManager", "Found ${fileList?.size ?: 0} items in ${directory.name}")
         
         fileList?.forEach { file ->
+          // Yield control to avoid blocking
+          yield()
+          
           if (file.isDirectory && currentDepth < maxDepth - 1) {
             android.util.Log.v("MediaManager", "Entering subdirectory: ${file.name}")
             scanDirectoryForZipFiles(file, maxDepth, currentDepth + 1)
@@ -766,17 +837,22 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     zipFiles.take(3).forEach { path ->
       android.util.Log.d("MediaManager", "Sample zip: $path")
     }
-    return zipFiles
+    return@withContext zipFiles
   }
 
-  private fun getVideoThumbnail(path: String): ByteArray? {
-    val bitmap = ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
-    return bitmap?.let { compressBitmapToByteArray(it) }
+  private suspend fun getVideoThumbnail(path: String): ByteArray? = withContext(Dispatchers.IO) {
+    try {
+      val bitmap = ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
+      bitmap?.let { compressBitmapToByteArray(it) }
+    } catch (e: Exception) {
+      android.util.Log.w("MediaManager", "Failed to create video thumbnail for $path: ${e.message}")
+      null
+    }
   }
 
-  private fun getAudioThumbnail(path: String): ByteArray? {
+  private suspend fun getAudioThumbnail(path: String): ByteArray? = withContext(Dispatchers.IO) {
     var retriever: MediaMetadataRetriever? = null
-    return try {
+    return@withContext try {
       retriever = MediaMetadataRetriever()
       retriever.setDataSource(path)
       val albumArt = retriever.embeddedPicture
