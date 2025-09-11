@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:media_manager/media_manager.dart';
 
+import 'optimized_media_tab.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -195,11 +197,26 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
         controller: _tabController,
         children: [
           _buildDirectoriesTab(),
-          MediaTab(mediaManager: _mediaManager, mediaType: MediaType.image),
-          MediaTab(mediaManager: _mediaManager, mediaType: MediaType.video),
-          MediaTab(mediaManager: _mediaManager, mediaType: MediaType.audio),
-          MediaTab(mediaManager: _mediaManager, mediaType: MediaType.document),
-          MediaTab(mediaManager: _mediaManager, mediaType: MediaType.zip),
+          OptimizedMediaTab(
+            mediaManager: _mediaManager,
+            mediaType: MediaType.image,
+          ),
+          OptimizedMediaTab(
+            mediaManager: _mediaManager,
+            mediaType: MediaType.video,
+          ),
+          OptimizedMediaTab(
+            mediaManager: _mediaManager,
+            mediaType: MediaType.audio,
+          ),
+          OptimizedMediaTab(
+            mediaManager: _mediaManager,
+            mediaType: MediaType.document,
+          ),
+          OptimizedMediaTab(
+            mediaManager: _mediaManager,
+            mediaType: MediaType.zip,
+          ),
           CustomFormatTab(mediaManager: _mediaManager),
         ],
       ),
@@ -480,7 +497,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
                   fontSize: 12,
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.6),
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -527,7 +544,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
                         size: 64,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.4),
+                        ).colorScheme.onSurface.withValues(alpha: 0.4),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -536,7 +553,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
                           fontSize: 16,
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.6),
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -547,7 +564,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
                           fontSize: 12,
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.4),
+                          ).colorScheme.onSurface.withValues(alpha: 0.4),
                         ),
                       ),
                     ],
@@ -588,7 +605,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
                             fontSize: 12,
                             color: Theme.of(
                               context,
-                            ).colorScheme.onSurface.withOpacity(0.6),
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -679,7 +696,16 @@ class _MediaTabState extends State<MediaTab>
   @override
   void initState() {
     super.initState();
-    _loadMedia();
+    // Delay loading to ensure widget tree is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMedia();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Additional setup can be done here if needed
   }
 
   Future<void> _loadMedia() async {
@@ -721,8 +747,37 @@ class _MediaTabState extends State<MediaTab>
               for (int i = 0; i < mediaPaths.length && i < 3; i++) {
                 debugPrint('  Document $i: ${mediaPaths[i]}');
               }
+
+              // Show success message after loading is complete
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Found ${mediaPaths.length} document files',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                });
+              }
             } else {
               debugPrint('No document files found!');
+              // Show helpful message to user after widget is built
+              if (mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'No documents found. Try placing some PDF, Word, or text files in Downloads or Documents folders.',
+                      ),
+                      duration: Duration(seconds: 5),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                });
+              }
             }
           } catch (e) {
             debugPrint('Error loading documents: $e');
@@ -788,24 +843,61 @@ class _MediaTabState extends State<MediaTab>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _getMediaTypeTitle(),
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _getMediaTypeTitle(),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_isLoading && widget.mediaType == MediaType.document)
+                      const Text(
+                        'Scanning directories... This may take a moment',
+                        style: TextStyle(fontSize: 12, color: Colors.orange),
+                      ),
+                  ],
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _loadMedia,
-                tooltip: 'Refresh ${_getMediaTypeTitle()}',
-              ),
+              _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _loadMedia,
+                      tooltip: 'Refresh ${_getMediaTypeTitle()}',
+                    ),
             ],
           ),
         ),
         // Content
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading ${_getMediaTypeTitle().toLowerCase()}...',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This may take a moment for large collections',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
               : _mediaPaths.isEmpty
               ? Center(
                   child: Column(
