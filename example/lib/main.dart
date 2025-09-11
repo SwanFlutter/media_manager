@@ -58,30 +58,26 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
   }
 
   Future<void> _checkPermission() async {
-    debugPrint('Requesting storage permission...');
     final hasPermission = await _mediaManager.requestStoragePermission();
-    debugPrint('Storage permission result: $hasPermission');
     setState(() {
       _hasPermission = hasPermission;
     });
     if (hasPermission) {
-      debugPrint('Permission granted, loading directories...');
+      // Permission granted, loading directories
       _loadDirectories();
     } else {
-      debugPrint('Permission denied! Cannot access media files.');
+      // Permission denied
     }
   }
 
   Future<void> _loadDirectories() async {
     try {
-      debugPrint('Loading directories...');
       final directories = await _mediaManager.getDirectories();
-      debugPrint('Loaded ${directories.length} directories');
       setState(() {
         _directories = directories;
       });
     } catch (e) {
-      debugPrint('Error loading directories: $e');
+      // Error loading directories
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading directories: $e')));
@@ -96,7 +92,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
         _selectedDirectory = directoryPath;
       });
     } catch (e) {
-      debugPrint('Error loading directory contents: $e');
+      // Error loading directory contents
     }
   }
 
@@ -406,12 +402,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
 
     try {
       final formats = _formatCategories[_selectedCategory] ?? [];
-      debugPrint(
-        'بارگذاری فایل‌های $_selectedCategory با فرمت‌های: ${formats.join(", ")}',
-      );
-
       final filePaths = await widget.mediaManager.getAllFilesByFormat(formats);
-      debugPrint('پیدا شدن ${filePaths.length} فایل $_selectedCategory');
 
       setState(() {
         _filePaths = filePaths;
@@ -430,8 +421,7 @@ class _CustomFormatTabState extends State<CustomFormatTab>
         );
       }
     } catch (e) {
-      debugPrint('خطا در بارگذاری فایل‌های $_selectedCategory: $e');
-      debugPrint('Stack trace: ${StackTrace.current}');
+      // Error loading files
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -723,30 +713,12 @@ class _MediaTabState extends State<MediaTab>
           mediaPaths = await widget.mediaManager.getAllVideos();
           break;
         case MediaType.audio:
-          debugPrint('Loading Audio files...');
           mediaPaths = await widget.mediaManager.getAllAudio();
-          debugPrint('Loaded ${mediaPaths.length} Audio files');
-          if (mediaPaths.isNotEmpty) {
-            debugPrint('First Audio path: ${mediaPaths.first}');
-            debugPrint('Sample audio paths:');
-            for (int i = 0; i < mediaPaths.length && i < 3; i++) {
-              debugPrint('  Audio $i: ${mediaPaths[i]}');
-            }
-          } else {
-            debugPrint('No audio files found!');
-          }
           break;
         case MediaType.document:
-          debugPrint('Loading Document files...');
           try {
             mediaPaths = await widget.mediaManager.getAllDocuments();
-            debugPrint('Loaded ${mediaPaths.length} Document files');
             if (mediaPaths.isNotEmpty) {
-              debugPrint('First Document path: ${mediaPaths.first}');
-              debugPrint('Sample document paths:');
-              for (int i = 0; i < mediaPaths.length && i < 3; i++) {
-                debugPrint('  Document $i: ${mediaPaths[i]}');
-              }
 
               // Show success message after loading is complete
               if (mounted) {
@@ -763,7 +735,6 @@ class _MediaTabState extends State<MediaTab>
                 });
               }
             } else {
-              debugPrint('No document files found!');
               // Show helpful message to user after widget is built
               if (mounted) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -780,28 +751,13 @@ class _MediaTabState extends State<MediaTab>
               }
             }
           } catch (e) {
-            debugPrint('Error loading documents: $e');
-            debugPrint('Stack trace: ${StackTrace.current}');
             rethrow;
           }
           break;
         case MediaType.zip:
-          debugPrint('Loading Archive/Zip files...');
           try {
             mediaPaths = await widget.mediaManager.getAllZipFiles();
-            debugPrint('Loaded ${mediaPaths.length} Archive files');
-            if (mediaPaths.isNotEmpty) {
-              debugPrint('First Archive path: ${mediaPaths.first}');
-              debugPrint('Sample archive paths:');
-              for (int i = 0; i < mediaPaths.length && i < 3; i++) {
-                debugPrint('  Archive $i: ${mediaPaths[i]}');
-              }
-            } else {
-              debugPrint('No archive files found!');
-            }
           } catch (e) {
-            debugPrint('Error loading archives: $e');
-            debugPrint('Stack trace: ${StackTrace.current}');
             rethrow;
           }
           break;
@@ -812,7 +768,6 @@ class _MediaTabState extends State<MediaTab>
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading ${_getMediaTypeTitle()}: $e');
       setState(() {
         _isLoading = false;
       });
@@ -1032,7 +987,6 @@ class _MediaTabState extends State<MediaTab>
         final path = _mediaPaths[index];
         return GestureDetector(
           onTap: () {
-            debugPrint('Tapped on video: $path');
             Navigator.push(
               context,
               MaterialPageRoute(

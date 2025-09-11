@@ -236,7 +236,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                         let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
                         fileSize = Int64(resourceValues.fileSize ?? 0)
                     } catch {
-                        print("Error getting file size: \(error)")
+                        // Error getting file size
                     }
                     
                     let fileExt = url.pathExtension.lowercased()
@@ -247,7 +247,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                             lastModified = date.timeIntervalSince1970
                         }
                     } catch {
-                        print("Error getting creation date: \(error)")
+                        // Error getting creation date
                     }
 
                     return [
@@ -351,7 +351,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
                         }
                     }
                 } catch {
-                    print("Error scanning directory: \(error.localizedDescription)")
+                    // Error scanning directory
                 }
             }
 
