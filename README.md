@@ -93,7 +93,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  media_manager: ^0.0.4
+  media_manager: ^0.0.5
 ```
 
 Then run:
