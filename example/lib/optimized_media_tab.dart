@@ -121,7 +121,7 @@ class _OptimizedMediaTabState extends State<OptimizedMediaTab>
     } catch (e) {
       if (!mounted) return;
 
-      debugPrint('Error loading ${_getMediaTypeTitle()}: $e');
+      // Error loading media
       setState(() {
         _isLoading = false;
       });

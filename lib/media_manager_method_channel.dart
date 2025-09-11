@@ -221,7 +221,7 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
       return [];
     } catch (e) {
       // Log error and return empty list
-      debugPrint('Error in getAllFilesByFormat: $e');
+      // Error in getAllFilesByFormat
       return [];
     }
   }

@@ -24,3 +24,7 @@
 * Fixed compilation errors and memory leaks
 * Added feature parity across all platforms
 * Improved error handling and logging 
+
+## 0.0.6
+*  Edit pub point.
+*  Edit readme.
