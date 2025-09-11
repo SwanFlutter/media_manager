@@ -80,10 +80,7 @@ A Flutter plugin for managing media files and directories across multiple platfo
 
 
 
-
-![20250410_232749](https://github.com/user-attachments/assets/a4f4b66b-dfcb-42da-9236-1c1decd6fd52)
-
-
+<img width="386" height="869" alt="media_managerPNG" src="https://github.com/user-attachments/assets/bdec60df-446c-4b70-9b2b-66047fcd92bf" />
 
 
 
