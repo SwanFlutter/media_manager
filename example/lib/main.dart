@@ -719,7 +719,6 @@ class _MediaTabState extends State<MediaTab>
           try {
             mediaPaths = await widget.mediaManager.getAllDocuments();
             if (mediaPaths.isNotEmpty) {
-
               // Show success message after loading is complete
               if (mounted) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
