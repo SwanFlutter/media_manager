@@ -12,6 +12,11 @@
 
 ## 0.0.4
 
+* Add New Feature thumbnail/preview .
+
+
+## 0.0.5
+
 * Enhanced OS compatibility - Support for Android 16 (API 36), iOS 18, and macOS 15 (Sequoia)
 * Improved memory management and battery optimization for Android
 * Enhanced permissions handling for latest Android versions
