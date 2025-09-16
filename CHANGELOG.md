@@ -28,3 +28,6 @@
 ## 0.0.6
 *  Edit pub point.
 *  Edit readme.
+
+## 0.0.7
+*  Fix bug gradle.
