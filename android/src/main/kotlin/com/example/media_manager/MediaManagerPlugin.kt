@@ -12,6 +12,9 @@ import android.provider.MediaStore
 import android.util.LruCache
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+// Add missing imports for API check and Size
+import android.os.Build
+import android.util.Size
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -832,7 +835,14 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private suspend fun getVideoThumbnail(path: String): ByteArray? = withContext(Dispatchers.IO) {
     try {
-      val bitmap = ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
+      val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val file = File(path)
+        // Approximate size similar to MINI_KIND while preserving reasonable quality
+        ThumbnailUtils.createVideoThumbnail(file, Size(512, 384), null)
+      } else {
+        @Suppress("DEPRECATION")
+        ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
+      }
       bitmap?.let { compressBitmapToByteArray(it) }
     } catch (e: Exception) {
       android.util.Log.w("MediaManager", "Failed to create video thumbnail for $path: ${e.message}")

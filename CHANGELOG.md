@@ -31,3 +31,8 @@
 
 ## 0.0.7
 *  Fix bug gradle.
+
+## 0.0.8
+*  Android: Replace deprecated video thumbnail API with modern createVideoThumbnail(File, Size) on API 29+ and fallback for older versions
+*  Lower default Gradle JVM memory for better compatibility
+*  Docs: Update README usage version, minor cleanup
