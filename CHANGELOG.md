@@ -36,3 +36,9 @@
 *  Android: Replace deprecated video thumbnail API with modern createVideoThumbnail(File, Size) on API 29+ and fallback for older versions
 *  Lower default Gradle JVM memory for better compatibility
 *  Docs: Update README usage version, minor cleanup
+
+## 0.0.9
+*  Fix: Optimize JVM memory allocation to resolve Kotlin daemon startup issues
+*  Android: Keep default heap size at 2G for optimal performance
+*  Android: Lower MetaspaceSize and ReservedCodeCacheSize for improved performance on low-memory systems
+*  Build: Add gradle.properties to main plugin directory for consistent JVM settings
