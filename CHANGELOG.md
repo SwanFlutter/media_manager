@@ -42,3 +42,16 @@
 *  Android: Keep default heap size at 2G for optimal performance
 *  Android: Lower MetaspaceSize and ReservedCodeCacheSize for improved performance on low-memory systems
 *  Build: Add gradle.properties to main plugin directory for consistent JVM settings
+
+## 0.1.0
+*  **MAJOR PERFORMANCE IMPROVEMENTS**: Complete optimization overhaul based on photo_manager techniques
+*  Android: Integrate Glide library for superior image loading, caching, and processing
+*  Android: Replace simple ExecutorService with optimized ThreadPoolExecutor (3-5 threads with 60s keep-alive)
+*  Android: Implement advanced caching system with 1/8 memory allocation (similar to photo_manager)
+*  Android: Add dedicated ThumbnailUtil class for better code organization and maintainability
+*  Android: Optimize image preview generation with Glide's centerCrop and disk caching
+*  Android: Enhance video thumbnail extraction using Glide's frame extraction capabilities
+*  Android: Improve permission handling with proper RequestPermissionsResultListener implementation
+*  Android: Better resource management and cleanup in plugin lifecycle
+*  Performance: Significant speed improvements for image and video loading operations
+*  Code Quality: Refactor thumbnail generation logic into separate utility class following Single Responsibility Principle

@@ -35,7 +35,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  media_manager: ^0.0.9
+  media_manager: ^0.1.0
 ```
 
 Run the installation command:
@@ -99,6 +99,9 @@ class MediaService {
   // Access the media manager instance
   static MediaManager get instance => _mediaManager;
 }
+
+// Or use MediaManager directly
+final mediaManager = MediaManager();
 ```
 
 ### 1. Platform Information
@@ -108,12 +111,13 @@ Get platform version information:
 ```dart
 Future<void> getPlatformInfo() async {
   try {
-    final version = await MediaService.instance.getPlatformVersion();
+    final version = await MediaManager().getPlatformVersion();
+    // Or using the service wrapper
+    // final version = await MediaService.instance.getPlatformVersion();
     print('Platform version: $version');
   } catch (e) {
     print('Error getting platform version: $e');
   }
-}
 ```
 
 ### 2. Storage Permission Management
@@ -123,7 +127,9 @@ Request and check storage permissions:
 ```dart
 Future<bool> checkStoragePermission() async {
   try {
-    final hasPermission = await MediaService.instance.requestStoragePermission();
+    final hasPermission = await MediaManager().requestStoragePermission();
+    // Or using the service wrapper
+    // final hasPermission = await MediaService.instance.requestStoragePermission();
     
     if (hasPermission) {
       print('✅ Storage permission granted');
@@ -176,7 +182,9 @@ class _PermissionCheckState extends State<PermissionCheck> {
 ```dart
 Future<void> loadDirectories() async {
   try {
-    final directories = await MediaService.instance.getDirectories();
+    final directories = await MediaManager().getDirectories();
+    // Or using the service wrapper
+    // final directories = await MediaService.instance.getDirectories();
     
     print('Found ${directories.length} directories:');
     for (final dir in directories) {
@@ -193,7 +201,9 @@ Future<void> loadDirectories() async {
 ```dart
 Future<void> exploreDirectory(String path) async {
   try {
-    final contents = await MediaService.instance.getDirectoryContents(path);
+    final contents = await MediaManager().getDirectoryContents(path);
+    // Or using the service wrapper
+    // final contents = await MediaService.instance.getDirectoryContents(path);
     
     print('\n📂 Contents of $path:');
     for (final item in contents) {
@@ -222,7 +232,9 @@ void main() async {
 ```dart
 Future<List<String>> getAllDeviceImages() async {
   try {
-    final images = await MediaService.instance.getAllImages();
+    final images = await MediaManager().getAllImages();
+    // Or using the service wrapper
+    // final images = await MediaService.instance.getAllImages();
     print('📸 Found ${images.length} images');
     
     // Group by extension
@@ -252,7 +264,9 @@ import 'dart:typed_data';
 
 Future<Uint8List?> getImageThumbnail(String imagePath) async {
   try {
-    final thumbnail = await MediaService.instance.getImagePreview(imagePath);
+    final thumbnail = await MediaManager().getImagePreview(imagePath);
+    // Or using the service wrapper
+    // final thumbnail = await MediaService.instance.getImagePreview(imagePath);
     
     if (thumbnail != null) {
       print('✅ Generated thumbnail for ${imagePath.split('/').last}');
@@ -303,7 +317,9 @@ class ImageThumbnail extends StatelessWidget {
 ```dart
 Future<void> clearImageCache() async {
   try {
-    await MediaService.instance.clearImageCache();
+    await MediaManager().clearImageCache();
+    // Or using the service wrapper
+    // await MediaService.instance.clearImageCache();
     print('🧹 Image cache cleared successfully');
   } catch (e) {
     print('Error clearing cache: $e');
@@ -318,7 +334,9 @@ Future<void> clearImageCache() async {
 ```dart
 Future<List<String>> getAllDeviceVideos() async {
   try {
-    final videos = await MediaService.instance.getAllVideos();
+    final videos = await MediaManager().getAllVideos();
+    // Or using the service wrapper
+    // final videos = await MediaService.instance.getAllVideos();
     print('🎥 Found ${videos.length} videos');
     
     // Show first 5 videos
@@ -340,7 +358,9 @@ Future<List<String>> getAllDeviceVideos() async {
 ```dart
 Future<Uint8List?> getVideoPreview(String videoPath) async {
   try {
-    final thumbnail = await MediaService.instance.getVideoThumbnail(videoPath);
+    final thumbnail = await MediaManager().getVideoThumbnail(videoPath);
+    // Or using the service wrapper
+    // final thumbnail = await MediaService.instance.getVideoThumbnail(videoPath);
     
     if (thumbnail != null) {
       print('✅ Generated video thumbnail for ${videoPath.split('/').last}');
@@ -412,7 +432,9 @@ class VideoThumbnail extends StatelessWidget {
 ```dart
 Future<List<String>> getAllDeviceAudio() async {
   try {
-    final audioFiles = await MediaService.instance.getAllAudio();
+    final audioFiles = await MediaManager().getAllAudio();
+    // Or using the service wrapper
+    // final audioFiles = await MediaService.instance.getAllAudio();
     print('🎵 Found ${audioFiles.length} audio files');
     
     // Create a simple audio library structure
@@ -443,7 +465,9 @@ Future<List<String>> getAllDeviceAudio() async {
 ```dart
 Future<Uint8List?> getAlbumArtwork(String audioPath) async {
   try {
-    final albumArt = await MediaService.instance.getAudioThumbnail(audioPath);
+    final albumArt = await MediaManager().getAudioThumbnail(audioPath);
+    // Or using the service wrapper
+    // final albumArt = await MediaService.instance.getAudioThumbnail(audioPath);
     
     if (albumArt != null) {
       print('🎨 Extracted album art from ${audioPath.split('/').last}');
@@ -505,7 +529,9 @@ class AlbumArtWidget extends StatelessWidget {
 ```dart
 Future<Map<String, List<String>>> getAllDocuments() async {
   try {
-    final documents = await MediaService.instance.getAllDocuments();
+    final documents = await MediaManager().getAllDocuments();
+    // Or using the service wrapper
+    // final documents = await MediaService.instance.getAllDocuments();
     print('📄 Found ${documents.length} documents');
     
     // Organize documents by type
@@ -560,8 +586,11 @@ String getCategoryForExtension(String extension) {
 ```dart
 Future<void> manageArchives() async {
   try {
-    final archives = await MediaService.instance.getAllZipFiles();
-    print('🗜️ Found ${archives.length} archive files');
+    final archives = await MediaManager().getAllZipFiles();
+    // Or using the service wrapper
+    // final archives = await MediaService.instance.getAllZipFiles();
+    
+    print('📦 Found ${archives.length} archive files');
     
     if (archives.length > 10) {
       print('💡 Tip: You have many archive files. Consider cleaning up old archives to save space.');
@@ -593,27 +622,27 @@ Future<void> manageArchives() async {
 Future<void> findCustomFiles() async {
   try {
     // Find Android APK files
-    final apkFiles = await MediaService.instance
+    final apkFiles = await MediaManager()
         .getAllFilesByFormat(['apk']);
     print('📱 Found ${apkFiles.length} APK files');
     
     // Find source code files
-    final codeFiles = await MediaService.instance
+    final codeFiles = await MediaManager()
         .getAllFilesByFormat(['dart', 'java', 'kt', 'swift', 'py']);
     print('💻 Found ${codeFiles.length} source code files');
     
     // Find configuration files
-    final configFiles = await MediaService.instance
+    final configFiles = await MediaManager()
         .getAllFilesByFormat(['json', 'xml', 'yaml', 'ini']);
     print('⚙️ Found ${configFiles.length} configuration files');
     
     // Find database files
-    final dbFiles = await MediaService.instance
+    final dbFiles = await MediaManager()
         .getAllFilesByFormat(['db', 'sqlite', 'sql']);
     print('🗃️ Found ${dbFiles.length} database files');
     
     // Find additional archives
-    final rarFiles = await MediaService.instance
+    final rarFiles = await MediaManager()
         .getAllFilesByFormat(['rar', '7z', 'tar', 'gz']);
     print('📦 Found ${rarFiles.length} additional archive files');
     
@@ -636,7 +665,7 @@ Future<Map<String, List<String>>> searchAllCustomFormats() async {
   
   try {
     for (final entry in categories.entries) {
-      final files = await MediaService.instance.getAllFilesByFormat(entry.value);
+      final files = await MediaManager().getAllFilesByFormat(entry.value);
       results[entry.key] = files;
       print('${entry.key}: ${files.length} files');
     }
@@ -650,11 +679,12 @@ Future<Map<String, List<String>>> searchAllCustomFormats() async {
   
   return results;
 }
-```
 
-### 10. Performance Management
+### 10. Performance Management & Isolate Usage
 
 #### Isolate Configuration
+
+The MediaManager plugin includes built-in isolate support to prevent UI freezing during heavy file operations. This is especially important when scanning large numbers of media files.
 
 ```dart
 class MediaManagerConfig {
@@ -706,6 +736,67 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       home: MediaManagerDemo(),
     );
   }
+}
+
+#### Toggle Isolates in Runtime
+
+You can provide users with the ability to toggle isolate usage for better performance control:
+
+```dart
+class MediaManagerScreen extends StatefulWidget {
+  @override
+  _MediaManagerScreenState createState() => _MediaManagerScreenState();
+}
+
+class _MediaManagerScreenState extends State<MediaManagerScreen> {
+  final _mediaManager = MediaManager();
+  // Or using the service wrapper
+  // final _mediaManager = MediaService.instance;
+  
+  List<String> _images = [];
+  List<String> _videos = [];
+  List<String> _audioFiles = [];
+  bool _isLoading = false;
+  bool _isolatesEnabled = false;
+  void _toggleIsolates() {
+    setState(() {
+      _isolatesEnabled = !_isolatesEnabled;
+      MediaManager.setIsolateUsage(_isolatesEnabled);
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isolatesEnabled 
+          ? 'Isolates enabled - Better performance for large file operations'
+          : 'Isolates disabled - Operations run on main thread'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+  
+  @override
+  void dispose() {
+    MediaManager.disposeIsolates(); // Clean up isolates
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Media Manager'),
+        actions: [
+          IconButton(
+            icon: Icon(_isolatesEnabled ? Icons.speed : Icons.speed_outlined),
+            onPressed: _toggleIsolates,
+            tooltip: _isolatesEnabled ? 'Disable Isolates' : 'Enable Isolates',
+          ),
+        ],
+      ),
+      body: YourMediaContent(),
+    );
+  }
+}
 }
 ```
 
@@ -947,7 +1038,6 @@ class MediaTypeScreen extends StatelessWidget {
     );
   }
 }
-```
 
 ## Error Handling
 

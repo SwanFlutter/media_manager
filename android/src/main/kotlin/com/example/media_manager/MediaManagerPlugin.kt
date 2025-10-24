@@ -1,20 +1,24 @@
 package com.example.media_manager
 
 import android.Manifest
+import android.app.Activity
+import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.ThumbnailUtils
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.LruCache
+import android.util.Size
+import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-// Add missing imports for API check and Size
-import android.os.Build
-import android.util.Size
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -22,27 +26,70 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import io.flutter.plugin.common.PluginRegistry
 import kotlinx.coroutines.*
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Executors
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import io.flutter.plugin.common.PluginRegistry
+import java.util.concurrent.LinkedBlockingQueue
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 
 /** MediaManagerPlugin */
-class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
+class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegistry.RequestPermissionsResultListener {
   /// The MethodChannel that will the communication between Flutter and native Android
-  private lateinit var channel: MethodChannel
+  ///
+  /// This local reference serves to register the plugin with the Flutter Engine and unregister it
+  /// when the Flutter Engine is detached from the Activity
+  private lateinit var channel : MethodChannel
   private lateinit var context: Context
+  private var activity: Activity? = null
+  private var pendingResult: Result? = null
+  private val PERMISSION_REQUEST_CODE = 1001
+
+  // بهینه‌سازی Thread Pool مشابه photo_manager
+  private val corePoolSize = 3
+  private val maximumPoolSize = 5
+  private val keepAliveTime = 60L
+  private val workQueue = LinkedBlockingQueue<Runnable>()
+  
+  private val optimizedExecutor = ThreadPoolExecutor(
+    corePoolSize,
+    maximumPoolSize,
+    keepAliveTime,
+    TimeUnit.SECONDS,
+    workQueue
+  ).apply {
+    allowCoreThreadTimeOut(true)
+  }
+
+  // کش بهینه برای تصاویر و ویدئوها
+  private val optimizedImageCache: LruCache<String, ByteArray> by lazy {
+    val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    val cacheSize = maxMemory / 8
+    object : LruCache<String, ByteArray>(cacheSize) {
+      override fun sizeOf(key: String, value: ByteArray): Int {
+        return value.size / 1024
+      }
+    }
+  }
+
+  // Thumbnail utility instance
+  private val thumbnailUtil by lazy {
+    ThumbnailUtil(context, optimizedImageCache, optimizedExecutor)
+  }
+
   private var activityBinding: ActivityPluginBinding? = null
   
-  // Memory management improvements
-  private val imageCache = LruCache<String, Bitmap>(10 * 1024 * 1024) // Reduced to 10MB
-  private val executorService = Executors.newFixedThreadPool(2) // Reduced threads
+  // Legacy executor for compatibility
+  private val executorService = Executors.newFixedThreadPool(2)
   private val dispatcher = executorService.asCoroutineDispatcher()
   private var scope: CoroutineScope? = null
   
-  // Track active operations to cancel them on cleanup
+  // Active jobs tracking
   private val activeJobs = mutableSetOf<Job>()
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -380,55 +427,18 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
   private fun getImagePreview(imagePath: String, result: Result) {
     val job = scope?.launch {
       try {
-        // Check cache
-        val cachedBitmap = imageCache.get(imagePath)
-        if (cachedBitmap != null) {
-          val byteArray = compressBitmapToByteArray(cachedBitmap)
-          withContext(Dispatchers.Main) {
+        val byteArray = thumbnailUtil.getImagePreview(imagePath)
+        
+        withContext(Dispatchers.Main) {
+          if (byteArray != null) {
             result.success(byteArray)
-          }
-          return@launch
-        }
-
-        // Load and cache image
-        val file = File(imagePath)
-        if (!file.exists() || !file.isFile) {
-          withContext(Dispatchers.Main) {
-            result.error("INVALID_IMAGE", "Invalid image", null)
-          }
-          return@launch
-        }
-
-        // Calculate optimal sample size based on target dimensions
-        val options = BitmapFactory.Options().apply {
-          inJustDecodeBounds = true
-          BitmapFactory.decodeFile(imagePath, this)
-          val targetWidth = 800  // Increased from previous value
-          val targetHeight = 800  // Increased from previous value
-          val scaleFactor = minOf(
-            outWidth / targetWidth,
-            outHeight / targetHeight
-          ).coerceAtLeast(1)
-          inSampleSize = scaleFactor
-          inJustDecodeBounds = false
-        }
-
-        val bitmap = BitmapFactory.decodeFile(imagePath, options)
-        if (bitmap != null) {
-          // Save to cache
-          imageCache.put(imagePath, bitmap)
-          val byteArray = compressBitmapToByteArray(bitmap)
-          withContext(Dispatchers.Main) {
-            result.success(byteArray)
-          }
-        } else {
-          withContext(Dispatchers.Main) {
-            result.error("IMAGE_DECODE_ERROR", "Error decoding image", null)
+          } else {
+            result.error("LOAD_FAILED", "Failed to load image preview", null)
           }
         }
       } catch (e: Exception) {
         withContext(Dispatchers.Main) {
-          result.error("IMAGE_PREVIEW_ERROR", "Error generating preview: ${e.message}", null)
+          result.error("LOAD_ERROR", "Error loading image: ${e.message}", null)
         }
       }
     }
@@ -445,7 +455,7 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun clearImageCache() {
-    imageCache.evictAll()
+    thumbnailUtil.clearCache()
   }
 
   private fun requestStoragePermission(result: Result) {
@@ -833,21 +843,8 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     return@withContext zipFiles
   }
 
-  private suspend fun getVideoThumbnail(path: String): ByteArray? = withContext(Dispatchers.IO) {
-    try {
-      val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val file = File(path)
-        // Approximate size similar to MINI_KIND while preserving reasonable quality
-        ThumbnailUtils.createVideoThumbnail(file, Size(512, 384), null)
-      } else {
-        @Suppress("DEPRECATION")
-        ThumbnailUtils.createVideoThumbnail(path, MediaStore.Video.Thumbnails.MINI_KIND)
-      }
-      bitmap?.let { compressBitmapToByteArray(it) }
-    } catch (e: Exception) {
-      android.util.Log.w("MediaManager", "Failed to create video thumbnail for $path: ${e.message}")
-      null
-    }
+  private suspend fun getVideoThumbnail(path: String): ByteArray? {
+    return thumbnailUtil.getVideoThumbnail(path)
   }
 
   private suspend fun getAudioThumbnail(path: String): ByteArray? = withContext(Dispatchers.IO) {
@@ -899,13 +896,19 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     scope = null
     clearImageCache()
     
-    // Clean up executor service
+    // Clean up executor services
     try {
+      optimizedExecutor.shutdown()
       executorService.shutdown()
+      
+      if (!optimizedExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+        optimizedExecutor.shutdownNow()
+      }
       if (!executorService.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
         executorService.shutdownNow()
       }
     } catch (e: InterruptedException) {
+      optimizedExecutor.shutdownNow()
       executorService.shutdownNow()
       Thread.currentThread().interrupt()
     }
@@ -925,5 +928,25 @@ class MediaManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
   override fun onDetachedFromActivity() {
     activityBinding = null
+  }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ): Boolean {
+    if (requestCode == PERMISSION_REQUEST_CODE) {
+      val allPermissionsGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+      pendingResult?.let { result ->
+        if (allPermissionsGranted) {
+          result.success(true)
+        } else {
+          result.error("PERMISSION_DENIED", "Storage permission denied", null)
+        }
+        pendingResult = null
+      }
+      return true
+    }
+    return false
   }
 }

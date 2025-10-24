@@ -23,6 +23,7 @@ A new Flutter project.
   # s.resource_bundles = {'media_manager_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
 
   s.dependency 'FlutterMacOS'
+  s.dependency 'Kingfisher', '~> 7.0'
 
   s.platform = :osx, '10.11'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }

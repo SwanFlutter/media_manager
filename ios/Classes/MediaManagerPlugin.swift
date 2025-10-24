@@ -2,18 +2,35 @@ import Flutter
 import UIKit
 import Photos
 import AVFoundation
+import Kingfisher
 
 public class MediaManagerPlugin: NSObject, FlutterPlugin {
-    private var imageCache = NSCache<NSString, UIImage>()
+    private var optimizedImageCache: ImageCache
+    private var thumbnailUtil: ThumbnailUtil
     private var permissionHandler: PermissionHandler?
+    private let concurrentQueue: DispatchQueue
+    
+    override init() {
+        // Initialize optimized components
+        self.optimizedImageCache = ImageCache.default
+        self.thumbnailUtil = ThumbnailUtil()
+        self.concurrentQueue = DispatchQueue(label: "media_manager.concurrent", 
+                                           qos: .userInitiated, 
+                                           attributes: .concurrent)
+        super.init()
+    }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "media_manager", binaryMessenger: registrar.messenger())
         let instance = MediaManagerPlugin()
         
-        // Setup memory management for cache
-        instance.imageCache.countLimit = 50 // Maximum 50 cached images
-        instance.imageCache.totalCostLimit = 50 * 1024 * 1024 // 50MB limit
+        // Configure optimized cache settings
+        let memoryLimit = ProcessInfo.processInfo.physicalMemory / 8 // 1/8 of device memory
+        let maxCacheSize = Int(min(memoryLimit, 100 * 1024 * 1024)) // Max 100MB
+        
+        instance.optimizedImageCache.memoryStorage.config.totalCostLimit = maxCacheSize
+        instance.optimizedImageCache.memoryStorage.config.countLimit = 100
+        instance.optimizedImageCache.diskStorage.config.sizeLimit = UInt(maxCacheSize * 2)
         
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
@@ -39,7 +56,16 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "getImagePreview":
             if let args = call.arguments as? [String: Any],
                let path = args["path"] as? String {
-                getImagePreview(path: path, result: result)
+                thumbnailUtil.getImagePreview(path: path) { thumbnailResult in
+                    switch thumbnailResult {
+                    case .success(let data):
+                        result(data)
+                    case .failure(let error):
+                        result(FlutterError(code: "IMAGE_PREVIEW_ERROR",
+                                          message: error.localizedDescription,
+                                          details: nil))
+                    }
+                }
             } else {
                 result(FlutterError(code: "INVALID_PATH",
                                   message: "Invalid image path",
@@ -47,7 +73,7 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             }
 
         case "clearImageCache":
-            clearImageCache()
+            thumbnailUtil.clearCache()
             result(true)
 
         case "requestStoragePermission":
@@ -162,7 +188,16 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "getVideoThumbnail":
             if let args = call.arguments as? [String: Any],
                let path = args["path"] as? String {
-                getVideoThumbnail(path: path, result: result)
+                thumbnailUtil.getVideoThumbnail(path: path) { thumbnailResult in
+                    switch thumbnailResult {
+                    case .success(let data):
+                        result(data)
+                    case .failure(let error):
+                        result(FlutterError(code: "VIDEO_THUMBNAIL_ERROR",
+                                          message: error.localizedDescription,
+                                          details: nil))
+                    }
+                }
             } else {
                 result(FlutterError(code: "INVALID_PATH",
                                   message: "Invalid video path",
@@ -185,7 +220,9 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     private func getDirectories(result: @escaping FlutterResult) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let homePath = documentsPath.deletingLastPathComponent()
@@ -218,7 +255,9 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     private func getDirectoryContents(path: String, result: @escaping FlutterResult) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             let directoryURL = URL(fileURLWithPath: path)
 
@@ -330,7 +369,9 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     private func getAllFilesByType(result: @escaping FlutterResult, extensions: [String]) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let homePath = documentsPath.deletingLastPathComponent()

@@ -1,12 +1,25 @@
 import Cocoa
 import FlutterMacOS
 import AVFoundation
+import Kingfisher
 
 public class MediaManagerPlugin: NSObject, FlutterPlugin {
-    private var imageCache = NSCache<NSString, NSImage>()
+    private var optimizedImageCache: ImageCache
+    private var thumbnailUtil: ThumbnailUtil
     private var scanCancelled = false
     private var scanInProgress = false
     private var methodChannel: FlutterMethodChannel?
+    private let concurrentQueue: DispatchQueue
+
+    override init() {
+        // Initialize optimized components
+        self.optimizedImageCache = ImageCache.default
+        self.thumbnailUtil = ThumbnailUtil()
+        self.concurrentQueue = DispatchQueue(label: "media_manager.concurrent.macos", 
+                                           qos: .userInitiated, 
+                                           attributes: .concurrent)
+        super.init()
+    }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "media_manager", binaryMessenger: registrar.messenger)
@@ -36,15 +49,24 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "getImagePreview":
             if let args = call.arguments as? [String: Any],
                let path = args["path"] as? String {
-                getImagePreview(path: path, result: result)
+                thumbnailUtil.getImagePreview(path: path) { thumbnailResult in
+                    switch thumbnailResult {
+                    case .success(let data):
+                        result(data)
+                    case .failure(let error):
+                        result(FlutterError(code: "IMAGE_PREVIEW_ERROR",
+                                          message: error.localizedDescription,
+                                          details: nil))
+                    }
+                }
             } else {
-                result(FlutterError(code: "INVALID_PATH",
-                                  message: "Invalid image path",
+                result(FlutterError(code: "INVALID_ARGUMENTS",
+                                  message: "Path is required",
                                   details: nil))
             }
 
         case "clearImageCache":
-            clearImageCache()
+            thumbnailUtil.clearCache()
             result(true)
             
         case "cancelFileSearch":
@@ -120,10 +142,19 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "getVideoThumbnail":
             if let args = call.arguments as? [String: Any],
                let path = args["path"] as? String {
-                getVideoThumbnail(path: path, result: result)
+                thumbnailUtil.getVideoThumbnail(path: path) { thumbnailResult in
+                    switch thumbnailResult {
+                    case .success(let data):
+                        result(data)
+                    case .failure(let error):
+                        result(FlutterError(code: "VIDEO_THUMBNAIL_ERROR",
+                                          message: error.localizedDescription,
+                                          details: nil))
+                    }
+                }
             } else {
-                result(FlutterError(code: "INVALID_PATH",
-                                  message: "Invalid video path",
+                result(FlutterError(code: "INVALID_ARGUMENTS",
+                                  message: "Path is required",
                                   details: nil))
             }
 
@@ -143,7 +174,9 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
     }
 
     private func getDirectories(result: @escaping FlutterResult) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             let homePath = fileManager.homeDirectoryForCurrentUser
 
@@ -167,15 +200,17 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
             } catch {
                 DispatchQueue.main.async {
                     result(FlutterError(code: "DIRECTORY_ACCESS_ERROR",
-                                    message: error.localizedDescription,
-                                    details: nil))
+                                      message: error.localizedDescription,
+                                      details: nil))
                 }
             }
         }
     }
 
     private func getDirectoryContents(path: String, result: @escaping FlutterResult) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             let directoryURL = URL(fileURLWithPath: path)
 
@@ -357,7 +392,9 @@ public class MediaManagerPlugin: NSObject, FlutterPlugin {
         scanInProgress = true
         scanCancelled = false
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        concurrentQueue.async { [weak self] in
+            guard let self = self else { return }
+            
             let fileManager = FileManager.default
             
             // Instead of starting from the home directory, ask user to choose directory
