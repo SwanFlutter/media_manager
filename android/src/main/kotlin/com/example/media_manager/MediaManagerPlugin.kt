@@ -236,11 +236,8 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
       "getAllFilesByFormat" -> {
         val formats = call.argument<List<String>>("formats")
         if (formats != null && formats.isNotEmpty()) {
-          android.util.Log.d("MediaManager", "Getting files by formats: ${formats.joinToString(", ")}")
-          android.util.Log.d("MediaManager", "Total formats requested: ${formats.size}")
           getAllFilesByType(result, formats)
         } else {
-          android.util.Log.w("MediaManager", "No formats provided or empty list")
           result.success(emptyList<String>())
         }
       }
@@ -253,12 +250,7 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
   private fun getDirectories(result: Result) {
     val job = scope?.launch {
       try {
-        android.util.Log.d("MediaManager", "Starting getDirectories...")
-        android.util.Log.d("MediaManager", "Android SDK: ${android.os.Build.VERSION.SDK_INT}")
-        
         val directories = mutableListOf<Map<String, Any>>()
-        
-        android.util.Log.d("MediaManager", "Creating comprehensive directory list...")
         
         try {
           // Add all standard directories
@@ -279,7 +271,6 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
             try {
               val dir = Environment.getExternalStoragePublicDirectory(dirType)
               if (dir != null && dir.exists()) {
-                android.util.Log.d("MediaManager", "Adding $displayName directory: ${dir.absolutePath}")
                 directories.add(mapOf(
                   "name" to displayName,
                   "path" to dir.absolutePath
@@ -490,18 +481,14 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
     
     val permissionStatus = permissions.map { permission ->
       val status = ContextCompat.checkSelfPermission(context, permission)
-      android.util.Log.d("MediaManager", "Permission $permission: ${if (status == PackageManager.PERMISSION_GRANTED) "GRANTED" else "DENIED"}")
       status
     }
     
     val hasAllPermissions = permissionStatus.all { it == PackageManager.PERMISSION_GRANTED }
-    android.util.Log.d("MediaManager", "All permissions granted: $hasAllPermissions")
 
     if (hasAllPermissions) {
-      android.util.Log.d("MediaManager", "All permissions already granted")
       result.success(true)
     } else {
-      android.util.Log.d("MediaManager", "Requesting permissions from user...")
       activityBinding?.let { binding ->
         val listener = object : PluginRegistry.RequestPermissionsResultListener {
           override fun onRequestPermissionsResult(
@@ -510,14 +497,8 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
             grantResults: IntArray
           ): Boolean {
             if (requestCode == 1) {
-              android.util.Log.d("MediaManager", "Permission result received")
-              grantResults.forEachIndexed { index, result ->
-                android.util.Log.d("MediaManager", "Permission ${permissions[index]}: ${if (result == PackageManager.PERMISSION_GRANTED) "GRANTED" else "DENIED"}")
-              }
-              
               val granted = grantResults.isNotEmpty() && 
                           grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-              android.util.Log.d("MediaManager", "Final permission result: $granted")
               result.success(granted)
               binding.removeRequestPermissionsResultListener(this)
               return true
@@ -551,9 +532,7 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
   private fun getAllFilesByType(result: Result, extensions: List<String>) {
     val job = scope?.launch {
       try {
-        android.util.Log.d("MediaManager", "getAllFilesByType called with extensions: ${extensions.joinToString(", ")}")
         if (extensions.isEmpty()) {
-          android.util.Log.w("MediaManager", "No extensions provided, returning empty list")
           withContext(Dispatchers.Main) {
             result.success(emptyList<String>())
           }
@@ -649,7 +628,7 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
           }
         }
       } ?: run {
-        android.util.Log.w("MediaManager", "MediaStore query returned null cursor")
+        // MediaStore query returned null cursor
       }
     } catch (e: Exception) {
       // MediaStore query failed
@@ -723,8 +702,6 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
   private suspend fun getAllZipFiles(): List<String> = withContext(Dispatchers.IO) {
     val zipFiles = mutableListOf<String>()
     
-    android.util.Log.d("MediaManager", "Starting zip file scan on Android SDK: ${android.os.Build.VERSION.SDK_INT}")
-    
     // Check permissions first - enhanced for newer Android versions
     val hasPermission = when {
       android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU -> {
@@ -738,13 +715,11 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
     }
     
     if (!hasPermission) {
-      android.util.Log.w("MediaManager", "Storage permission not granted, cannot scan for zip files")
       return@withContext zipFiles
     }
     
     // First, try MediaStore approach for all versions
     try {
-      android.util.Log.d("MediaManager", "Trying MediaStore for zip files...")
       val projection = arrayOf(
         MediaStore.Files.FileColumns.DATA,
         MediaStore.Files.FileColumns.DISPLAY_NAME,
@@ -767,23 +742,20 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
       )
       
       cursor?.use {
-        android.util.Log.d("MediaManager", "MediaStore zip cursor count: ${it.count}")
         val dataColumn = it.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
         
         while (it.moveToNext()) {
           val filePath = it.getString(dataColumn)
           if (filePath != null && File(filePath).exists()) {
             zipFiles.add(filePath)
-            android.util.Log.i("MediaManager", "MediaStore found zip: $filePath")
           }
         }
       }
     } catch (e: Exception) {
-      android.util.Log.w("MediaManager", "MediaStore zip query failed: ${e.message}")
+      // MediaStore query failed, continue with directory scanning
     }
     
     // If MediaStore didn't find files or for comprehensive search, also scan directories
-    android.util.Log.d("MediaManager", "MediaStore found ${zipFiles.size} zip files, now scanning directories...")
     // Scan common directories for comprehensive coverage
     val commonDirs = listOf(
       Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
@@ -799,47 +771,36 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
       if (currentDepth >= maxDepth) return
       
       try {
-        android.util.Log.d("MediaManager", "Scanning directory (depth $currentDepth): ${directory.absolutePath}")
         val fileList = directory.listFiles()
-        android.util.Log.d("MediaManager", "Found ${fileList?.size ?: 0} items in ${directory.name}")
         
         fileList?.forEach { file ->
           // Yield control to avoid blocking
           yield()
           
           if (file.isDirectory && currentDepth < maxDepth - 1) {
-            android.util.Log.v("MediaManager", "Entering subdirectory: ${file.name}")
             scanDirectoryForZipFiles(file, maxDepth, currentDepth + 1)
           } else if (file.isFile) {
             val extension = file.extension.lowercase()
             if (listOf("zip", "rar", "7z").contains(extension)) {
               if (!zipFiles.contains(file.absolutePath)) { // Avoid duplicates
                 zipFiles.add(file.absolutePath)
-                android.util.Log.i("MediaManager", "Found zip file: ${file.name} (${file.absolutePath})")
               }
             }
           }
         }
       } catch (e: SecurityException) {
-        android.util.Log.w("MediaManager", "Cannot access directory: ${directory.absolutePath} - ${e.message}")
+        // Cannot access directory
       } catch (e: Exception) {
-        android.util.Log.e("MediaManager", "Error scanning directory: ${directory.absolutePath}", e)
+        // Error scanning directory
       }
     }
     
     commonDirs.forEach { dir ->
       if (dir != null && dir.exists() && dir.canRead()) {
-        android.util.Log.d("MediaManager", "Scanning common directory: ${dir.absolutePath}")
         scanDirectoryForZipFiles(dir)
-      } else {
-        android.util.Log.w("MediaManager", "Cannot access directory: ${dir?.absolutePath ?: "null"}")
       }
     }
     
-    android.util.Log.d("MediaManager", "Total zip files found: ${zipFiles.size}")
-    zipFiles.take(3).forEach { path ->
-      android.util.Log.d("MediaManager", "Sample zip: $path")
-    }
     return@withContext zipFiles
   }
 
@@ -855,13 +816,12 @@ class MediaManagerPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, Plugi
       val albumArt = retriever.embeddedPicture
       albumArt
     } catch (e: Exception) {
-      android.util.Log.w("MediaManager", "Failed to extract album art from $path: ${e.message}")
       null
     } finally {
       try {
         retriever?.release()
       } catch (e: Exception) {
-        android.util.Log.w("MediaManager", "Failed to release MediaMetadataRetriever: ${e.message}")
+        // Failed to release MediaMetadataRetriever
       }
     }
   }

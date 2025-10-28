@@ -60,3 +60,8 @@
 ## 0.1.1
 
 * Fix README for use Performance Management & Isolate Usage
+
+## 0.1.2
+
+*  Fix bug gradle.
+*  Remove debug logging from MediaManagerPlugin

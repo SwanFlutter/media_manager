@@ -16,11 +16,9 @@ A new Flutter project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
 
-  # If your plugin requires a privacy manifest, for example if it collects user
-  # data, update the PrivacyInfo.xcprivacy file to describe your plugin's
-  # privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'media_manager_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
+  # Privacy manifest for macOS 14+ compliance
+  # فایل حریم خصوصی برای سازگاری با macOS 14+
+  s.resource_bundles = {'media_manager_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
 
   s.dependency 'FlutterMacOS'
   s.dependency 'Kingfisher', '~> 7.0'

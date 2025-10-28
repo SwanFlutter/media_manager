@@ -35,7 +35,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  media_manager: ^0.1.1
+  media_manager: ^0.1.2
 ```
 
 Run the installation command:
@@ -48,43 +48,50 @@ flutter pub get
 
 #### Android Setup
 
-Add permissions to `android/app/src/main/AndroidManifest.xml`:
+**No setup required!** All necessary permissions are automatically handled by the plugin for Android versions 5-16.
+
+add this line to your AndroidManifest.xml file:
 
 ```xml
-<!-- Basic permissions -->
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
-
-<!-- Android 13+ granular permissions -->
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-
-<!-- For comprehensive file access -->
-<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+android:requestLegacyExternalStorage="true"
 ```
-
+```xml
+    <application
+        android:label="example"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
+```
 #### iOS Setup
 
-Add to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSPhotoLibraryUsageDescription</key>
-<string>This app needs access to photo library to manage media files.</string>
-<key>NSPhotoLibraryAddUsageDescription</key>
-<string>This app needs access to photo library to save media files.</string>
-```
+**No setup required!** All necessary permissions are automatically handled by the plugin for iOS 12+.
 
 #### macOS Setup
 
-Add to `macos/Runner/Info.plist`:
+**No setup required!** All necessary permissions are automatically handled by the plugin for macOS 10.11+.
 
-```xml
-<key>NSDocumentsFolderUsageDescription</key>
-<string>This app needs access to Documents folder to manage files.</string>
-<key>NSDownloadsFolderUsageDescription</key>
-<string>This app needs access to Downloads folder to manage files.</string>
-```
+## Permissions
+
+### Android
+The plugin automatically handles all necessary permissions for Android versions 5-16. The following permissions are automatically added to your app:
+
+- `READ_EXTERNAL_STORAGE` (for Android 5-12)
+- `WRITE_EXTERNAL_STORAGE` (for Android 5-9)
+- `MANAGE_EXTERNAL_STORAGE` (for Android 11+)
+- `ACCESS_MEDIA_LOCATION` (for accessing media location data)
+- `READ_MEDIA_IMAGES` (for Android 13+)
+- `READ_MEDIA_VIDEO` (for Android 13+)
+
+**No manual permission declaration is needed in your AndroidManifest.xml file.**
+
+### iOS/macOS
+The plugin automatically handles all necessary permissions for iOS 12+ and macOS 10.11+. The following permissions are automatically configured:
+
+- Photo Library access
+- File system access
+- System information access
+
+**No manual permission declaration is needed in your Info.plist file.**
 
 ## API Reference & Usage Examples
 
