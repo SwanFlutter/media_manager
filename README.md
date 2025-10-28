@@ -35,7 +35,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  media_manager: ^0.1.0
+  media_manager: ^0.1.1
 ```
 
 Run the installation command:

@@ -55,3 +55,8 @@
 *  Android: Better resource management and cleanup in plugin lifecycle
 *  Performance: Significant speed improvements for image and video loading operations
 *  Code Quality: Refactor thumbnail generation logic into separate utility class following Single Responsibility Principle
+
+
+## 0.1.1
+
+* Fix README for use Performance Management & Isolate Usage
