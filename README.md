@@ -679,7 +679,7 @@ Future<Map<String, List<String>>> searchAllCustomFormats() async {
   
   return results;
 }
-
+```
 ### 10. Performance Management & Isolate Usage
 
 #### Isolate Configuration
