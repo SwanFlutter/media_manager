@@ -1,0 +1,94 @@
+name: iOS Integration Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  ios-integration:
+    name: iOS Integration Test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies (plugin root)
+        run: flutter pub get
+
+      - name: Analyze iOS platform code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run unit tests
+        run: flutter test --reporter=expanded
+
+      - name: Install dependencies (example app)
+        working-directory: example
+        run: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        working-directory: example/ios
+        run: pod install
+
+      - name: List available simulators
+        run: xcrun simctl list devices available --json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for runtime, devices in data['devices'].items():
+    for d in devices:
+        if 'iPhone' in d['name']:
+            print(runtime, d['udid'], d['name'])
+"
+
+      - name: Boot iPhone simulator
+        id: simulator
+        run: |
+          # Pick the latest available iPhone simulator
+          UDID=$(xcrun simctl list devices available -j | \
+            python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+candidates = []
+for runtime, devices in data['devices'].items():
+    if 'iOS' not in runtime:
+        continue
+    for d in devices:
+        if 'iPhone' in d['name'] and d['isAvailable']:
+            candidates.append((runtime, d['udid'], d['name']))
+candidates.sort(key=lambda x: x[0], reverse=True)
+print(candidates[0][1]) if candidates else sys.exit(1)
+")
+          echo "SIMULATOR_UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID" || true
+          echo "Booted simulator: $UDID"
+
+      - name: Grant Photos permission in simulator (iOS 14+)
+        run: |
+          # Reset all privacy permissions for the example app bundle so the
+          # simulator does not block the integration test on first launch.
+          # The bundle ID matches the example app's applicationId.
+          xcrun simctl privacy "$SIMULATOR_UDID" grant photos-add-only \
+            com.example.mediaManagerExample || true
+          xcrun simctl privacy "$SIMULATOR_UDID" grant photos \
+            com.example.mediaManagerExample || true
+
+      - name: Run integration tests on iOS Simulator
+        working-directory: example
+        run: |
+          flutter test integration_test/plugin_integration_test.dart \
+            -d "$SIMULATOR_UDID" \
+            --reporter=expanded \
+            --timeout=120s
+
+      - name: Shutdown simulator
+        if: always()
+        run: xcrun simctl shutdown "$SIMULATOR_UDID" || true

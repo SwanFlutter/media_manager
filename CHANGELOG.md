@@ -1,4 +1,4 @@
-## 0.2.0
+## 1.0.0
 
 **BREAKING CHANGE — API redesign to match the new Android engine**
 
@@ -30,6 +30,8 @@
 * `ThumbnailUtil.swift` removed — replaced by `ThumbnailEngine.swift`
 * `ThumbnailEngine`: same disk-cache design; uses `NSImage` + `NSBitmapImageRep` for JPEG output; `AVAssetImageGenerator` for video frames; no Kingfisher
 * `MediaManagerPlugin`: `SafeResult` added; `getMediaPage`/`getMediaCount` use recursive file-system walk (max depth 8) with extension filtering; `getDirectories` returns well-known home subdirectories; `requestStoragePermission` uses `NSOpenPanel`; Kingfisher dependency **removed**
+
+* Fix bug kotlin (AGP)
 
 ---
 
