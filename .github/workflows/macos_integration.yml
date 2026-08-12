@@ -18,9 +18,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.44.9'
           channel: 'stable'
           cache: true
+
+      - name: Print SDK versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Enable macOS desktop support
+        run: flutter config --enable-macos-desktop
 
       - name: Install dependencies (plugin root)
         run: flutter pub get
@@ -45,4 +53,7 @@ jobs:
 
       - name: Run integration tests on macOS
         working-directory: example
-        run: flutter test integration_test/plugin_integration_test.dart -d macos --reporter=expanded
+        run: |
+          flutter test integration_test/plugin_integration_test.dart \
+            -d macos \
+            --reporter=expanded
