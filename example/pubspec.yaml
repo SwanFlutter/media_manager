@@ -37,10 +37,12 @@ dev_dependencies:
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  # activated in the `analysis_options.yaml` file located in the root of your
+  # package. For information on deactivating specific lint
+  # rules and activating additional ones, see
+  # https://flutter.dev/to/flutter-lint-readme.
   flutter_lints: ^6.0.0
+  plugin_platform_interface: ^2.1.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

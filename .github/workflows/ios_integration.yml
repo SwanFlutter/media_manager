@@ -18,7 +18,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.44.9'
           channel: 'stable'
           cache: true
 
@@ -34,10 +34,6 @@ jobs:
       - name: Install dependencies (example app)
         working-directory: example
         run: flutter pub get
-
-      - name: Install CocoaPods dependencies
-        working-directory: example/ios
-        run: pod install
 
       - name: List available simulators
         run: |

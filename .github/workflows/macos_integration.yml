@@ -43,10 +43,6 @@ jobs:
         working-directory: example
         run: flutter pub get
 
-      - name: Install CocoaPods dependencies
-        working-directory: example/macos
-        run: pod install
-
       - name: Build example app for macOS (debug)
         working-directory: example
         run: flutter build macos --debug
