@@ -76,13 +76,17 @@ jobs:
           xcrun simctl privacy "$SIMULATOR_UDID" grant photos \
             com.example.mediaManagerExample || true
 
+      - name: Pre-build example app for iOS simulator
+        working-directory: example
+        run: flutter build ios --simulator --no-codesign
+
       - name: Run integration tests on iOS Simulator
         working-directory: example
         run: |
           flutter test integration_test/plugin_integration_test.dart \
             -d "$SIMULATOR_UDID" \
             --reporter=expanded \
-            --timeout=120s
+            --timeout=600s
 
       - name: Shutdown simulator
         if: always()
