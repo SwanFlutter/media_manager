@@ -105,9 +105,9 @@ final class ThumbnailEngine {
             image = decodeSampled(uriOrPath: uriOrPath, reqW: w, reqH: h)
         }
         guard let img = image,
-              let data = img.jpegData(compressionQuality: quality) else { return nil }
+              let data = img.jpegData(compressionQuality: ThumbnailEngine.quality) else { return nil }
         do {
-            try data.write(to: out, options: .atomic)
+            try data.write(to: out, options: Data.WritingOptions.atomic)
             return out.path
         } catch {
             return nil
@@ -120,8 +120,6 @@ final class ThumbnailEngine {
     private func decodeSampled(uriOrPath: String, reqW: Int, reqH: Int) -> UIImage? {
         guard let data = loadData(uriOrPath) else { return nil }
 
-        // 1. bounds pass
-        let opts = UIImage.preparingForDisplay()
         guard let src = UIImage(data: data) else { return nil }
 
         // 2. Scale down proportionally
@@ -229,10 +227,4 @@ final class ThumbnailEngine {
         data.withUnsafeBytes { _ = CC_MD5($0.baseAddress, CC_LONG(data.count), &digest) }
         return digest.map { String(format: "%02x", $0) }.joined()
     }
-}
-
-// Silence deprecation warning for CC_MD5 on iOS 13+  (still available & fine for cache keys)
-extension UIImage {
-    // No-op helper to call preparingForDisplay without capture
-    fileprivate func preparingForDisplay() -> UIImage.Configuration? { nil }
 }
