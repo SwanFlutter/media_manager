@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "media_manager",
     platforms: [
-        .iOS("13.0")
+        .iOS("14.0")
     ],
     products: [
         .library(name: "media-manager", targets: ["media_manager"])

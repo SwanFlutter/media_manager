@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import Photos
 import AVFoundation
+import UniformTypeIdentifiers
 
 public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
@@ -180,7 +181,7 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
         let stamp = Int64((asset.modificationDate?.timeIntervalSince1970 ?? 0) * 1000)
         var mimeType: String? = nil
         if let uti = asset.value(forKey: "uniformTypeIdentifier") as? String {
-            mimeType = UTType(uti)?.preferredMIMEType
+            mimeType = UTType(rawValue: uti)?.preferredMIMEType
         }
         return [
             "id"           : 0,                                // no integer id on iOS
@@ -247,17 +248,6 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
             ]
         }
     }
-}
-
-// MARK: - UTType back-deploy helper
-private enum UTType {
-    init?(_ utiString: String) {
-        // Minimal helper — real UTType is iOS 14+; for older we skip mime resolution
-        if #available(iOS 14, *) {
-            guard Foundation.UTType(utiString) != nil else { return nil }
-        }
-    }
-    var preferredMIMEType: String? { nil }   // simplified; full impl needs iOS 14 UTType
 }
 
 // MARK: - SafeResult

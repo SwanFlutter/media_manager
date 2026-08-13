@@ -81,14 +81,17 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          set +e
           flutter test integration_test/plugin_integration_test.dart \
             -d "$SIMULATOR_UDID" \
             --reporter=expanded \
             --timeout=600s 2>&1 | tee ios_test.log
-          if [ $? -ne 0 ]; then
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$STATUS" -ne 0 ]; then
             echo "===== BUILD/TEST LOG TAIL ====="
             tail -n 200 ios_test.log
-            exit 1
+            exit "$STATUS"
           fi
 
       - name: Shutdown simulator
