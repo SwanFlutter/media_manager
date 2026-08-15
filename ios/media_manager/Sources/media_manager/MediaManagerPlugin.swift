@@ -3,6 +3,7 @@ import UIKit
 import Photos
 import AVFoundation
 import UniformTypeIdentifiers
+import MobileCoreServices
 
 public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
@@ -35,7 +36,12 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
         // ── Permissions ───────────────────────────────────────────────────
         case "hasStoragePermission":
-            safe.success(authStatus() == .authorized || authStatus() == .limited)
+            let status = authStatus()
+            if #available(iOS 14, *) {
+                safe.success(status == .authorized || status == .limited)
+            } else {
+                safe.success(status == .authorized)
+            }
 
         case "requestStoragePermission":
             requestPhotoPermission(safe)
@@ -181,7 +187,7 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
         let stamp = Int64((asset.modificationDate?.timeIntervalSince1970 ?? 0) * 1000)
         var mimeType: String? = nil
         if let uti = asset.value(forKey: "uniformTypeIdentifier") as? String {
-            mimeType = UTType(uti)?.preferredMIMEType
+            mimeType = mimeTypeFromUTI(uti)
         }
         return [
             "id"           : 0,                                // no integer id on iOS
@@ -195,6 +201,18 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
             "height"       : asset.pixelHeight,
             "duration"     : Int64(asset.duration * 1000),
         ]
+    }
+
+    /// Resolves a UTI to its preferred MIME type, supporting iOS 13 and later.
+    private func mimeTypeFromUTI(_ uti: String) -> String? {
+        if #available(iOS 14, *) {
+            return UTType(uti)?.preferredMIMEType
+        }
+        guard let mime = UTTypeCopyPreferredTagWithClass(uti as CFString,
+                                                         kUTTagClassMIMEType)?.takeRetainedValue() else {
+            return nil
+        }
+        return mime as String
     }
 
     // MARK: - Directory helpers
