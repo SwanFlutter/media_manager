@@ -1,5 +1,5 @@
 name: media_manager
-description: "A new Flutter plugin project."
+description: "A Flutter plugin for managing media files on Android, iOS, and macOS with enhanced performance and latest OS compatibility."
 version: 1.0.0
 homepage: "https://github.com/SwanFlutter/media_manager"
 
