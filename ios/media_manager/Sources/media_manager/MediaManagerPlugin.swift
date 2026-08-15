@@ -181,7 +181,7 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
         let stamp = Int64((asset.modificationDate?.timeIntervalSince1970 ?? 0) * 1000)
         var mimeType: String? = nil
         if let uti = asset.value(forKey: "uniformTypeIdentifier") as? String {
-            mimeType = UTType(rawValue: uti)?.preferredMIMEType
+            mimeType = UTType(uti)?.preferredMIMEType
         }
         return [
             "id"           : 0,                                // no integer id on iOS
