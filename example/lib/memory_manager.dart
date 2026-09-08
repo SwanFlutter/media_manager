@@ -42,6 +42,7 @@ class ThumbnailPathCache {
 class ThumbnailQueue {
   final int maxConcurrent;
 
+  final Map<String, List<Completer<String?>>> _waiters = {};
   final Set<String> _inFlight = {};
   final Queue<_ThumbnailRequest> _pending = Queue();
   int _active = 0;
@@ -54,16 +55,16 @@ class ThumbnailQueue {
   ThumbnailQueue.withConcurrency(this.maxConcurrent);
 
   /// Enqueues a thumbnail request and returns the resulting path.
-  Future<String?> request(
-    String key,
-    Future<String?> Function() generate,
-  ) async {
-    // Already in-flight: wait then return cached result
+  Future<String?> request(String key, Future<String?> Function() generate) {
+    // If already cached, return immediately
+    final cached = ThumbnailPathCache().get(key);
+    if (cached != null) return Future.value(cached);
+
+    // If already in-flight, attach a waiter instead of creating a duplicate job
     if (_inFlight.contains(key)) {
-      while (_inFlight.contains(key)) {
-        await Future<void>.delayed(const Duration(milliseconds: 30));
-      }
-      return ThumbnailPathCache().get(key);
+      final completer = Completer<String?>();
+      _waiters.putIfAbsent(key, () => []).add(completer);
+      return completer.future;
     }
 
     final completer = Completer<String?>();
@@ -82,15 +83,21 @@ class ThumbnailQueue {
   }
 
   Future<void> _run(_ThumbnailRequest req) async {
+    String? path;
     try {
-      final path = await req.generate();
+      path = await req.generate();
       if (path != null) ThumbnailPathCache().put(req.key, path);
       req.completer.complete(path);
-    } catch (e) {
-      req.completer.completeError(e);
+    } catch (e, st) {
+      req.completer.completeError(e, st);
     } finally {
       _active--;
       _inFlight.remove(req.key);
+      // Resolve all waiters for this key
+      final waiters = _waiters.remove(req.key) ?? [];
+      for (final w in waiters) {
+        if (!w.isCompleted) w.complete(path);
+      }
       _drain();
     }
   }

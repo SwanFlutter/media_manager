@@ -135,7 +135,7 @@ final class ThumbnailEngine {
 
     private func videoFrame(uriOrPath: String, w: Int, h: Int) -> UIImage? {
         let url: URL = uriOrPath.hasPrefix("ph://")
-            ? localURL(for: uriOrPath) ?? URL(fileURLWithPath: uriOrPath)
+            ? localURL(for: uriOrPath, video: true) ?? URL(fileURLWithPath: uriOrPath)
             : URL(fileURLWithPath: uriOrPath)
 
         let asset     = AVAsset(url: url)
@@ -178,7 +178,7 @@ final class ThumbnailEngine {
     }
 
     /// Resolves a `ph://` Photos asset URI to a local file URL synchronously.
-    private func localURL(for phURI: String) -> URL? {
+    private func localURL(for phURI: String, video: Bool = false) -> URL? {
         let localId = phURI.replacingOccurrences(of: "ph://", with: "")
         let results = PHAsset.fetchAssets(withLocalIdentifiers: [localId], options: nil)
         guard let asset = results.firstObject else { return nil }
@@ -187,7 +187,11 @@ final class ThumbnailEngine {
         let opts = PHContentEditingInputRequestOptions()
         opts.isNetworkAccessAllowed = false
         asset.requestContentEditingInput(with: opts) { input, _ in
-            fileURL = input?.fullSizeImageURL
+            if video, let avAsset = input?.audiovisualAsset as? AVURLAsset {
+                fileURL = avAsset.url
+            } else {
+                fileURL = input?.fullSizeImageURL
+            }
             sem.signal()
         }
         sem.wait()

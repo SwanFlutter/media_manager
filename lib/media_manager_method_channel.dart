@@ -45,15 +45,13 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
     int page = 0,
     int pageSize = 100,
   }) async {
-    final raw = await methodChannel.invokeMethod<List<dynamic>>(
-      'getMediaPage',
-      {
-        'type': type.name,
-        'extensions': extensions,
-        'page': page,
-        'pageSize': pageSize,
-      },
-    );
+    final raw = await methodChannel
+        .invokeMethod<List<dynamic>>('getMediaPage', {
+          'type': type.name,
+          'extensions': extensions,
+          'page': page,
+          'pageSize': pageSize,
+        });
     if (raw == null) return const [];
     return raw
         .map((e) => MediaItem.fromMap(Map<String, dynamic>.from(e as Map)))

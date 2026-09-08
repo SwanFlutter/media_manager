@@ -78,7 +78,8 @@ project.extensions.configure(org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjec
 }
 
 dependencies {
-    implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.annotation:annotation:1.9.1")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

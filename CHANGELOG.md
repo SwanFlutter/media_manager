@@ -1,3 +1,18 @@
+## 1.0.1
+
+### Bug Fixes
+* **Android** — Fixed `java.io.SyncFailedException: sync failed` that prevented every thumbnail from being saved to disk. `FileDescriptor.sync()` throws on `cacheDir` (tmpfs/virtual FS) on many Android 10+ devices; replaced with `BufferedOutputStream.flush()` which is sufficient for thumbnail cache correctness.
+* **Android** — Fixed blank image/video grid: `MediaStoreScanner` now builds typed URIs (`Images.Media`, `Video.Media`, `Audio.Media`) instead of the generic `Files` URI so `ContentResolver.loadThumbnail` (API 29+) and the legacy `Images.Thumbnails` API work correctly.
+* **Android** — Replaced unused `glide` dependency with `androidx.exifinterface:exifinterface:1.3.7` and added `androidx.annotation:annotation:1.9.1` which are actually used by `ThumbnailEngine`.
+* **Android** — `decodeSampled()` stream `open()` now wrapped in try/catch so a `SecurityException` on a single file doesn't abort the whole batch.
+* **Android** — `imageBitmap()` fallback chain: `loadThumbnail` (API 29+) → legacy `Images.Thumbnails` (API < 29) → `BitmapFactory` two-pass decode. Previously `loadThumbnail` failure was silently swallowed without falling back.
+* **Dart** — `ThumbnailQueue` duplicate-request handling rewritten from a busy-wait `Future.delayed(30 ms)` loop to a `Completer`-based waiter list — eliminates CPU waste and resolves duplicate channel calls for the same key.
+* **Dart** — `_ThumbnailTileState`: thumbnail fetch now deferred to `addPostFrameCallback` so the grid renders its first frame before any platform calls are made (reduces `Skipped N frames` jank).
+* **Dart** — When thumbnail path is `null`, widget correctly transitions to error state instead of staying stuck on a blank placeholder forever.
+* **Example** — Removed unsupported `example/windows/` directory.
+
+---
+
 ## 1.0.0
 
 **BREAKING CHANGE — API redesign to match the new Android engine**

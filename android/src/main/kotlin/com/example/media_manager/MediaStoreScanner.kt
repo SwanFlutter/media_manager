@@ -51,31 +51,32 @@ class MediaStoreScanner(private val context: Context) {
         val out = ArrayList<Map<String, Any?>>(limit)
 
         runQuery(selection, args, sort, limit, offset, signal)?.use { c ->
-            val idIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
-            val nameIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
-            val sizeIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
-            val dateIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
-            val mimeIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
+            val idIdx    = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+            val nameIdx  = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val sizeIdx  = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+            val dateIdx  = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+            val mimeIdx  = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE)
             val mediaIdx = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
-            val wIdx = c.getColumnIndex("width")
-            val hIdx = c.getColumnIndex("height")
-            val dIdx = c.getColumnIndex("duration")
+            val wIdx     = c.getColumnIndex("width")
+            val hIdx     = c.getColumnIndex("height")
+            val dIdx     = c.getColumnIndex("duration")
 
             while (c.moveToNext()) {
-                if (signal?.let { false } == null) { /* no-op, signal.throwIfCanceled در query */ }
-                val id = c.getLong(idIdx)
+                val id        = c.getLong(idIdx)
+                val mediaType = c.getInt(mediaIdx)
+                val uri       = buildMediaUri(id, mediaType)
                 out.add(
                     mapOf(
-                        "id" to id,
-                        "uri" to Uri.withAppendedPath(filesUri, id.toString()).toString(),
-                        "name" to (c.getStringOrNull(nameIdx) ?: ""),
-                        "size" to c.getLong(sizeIdx),
+                        "id"           to id,
+                        "uri"          to uri,
+                        "name"         to (c.getStringOrNull(nameIdx) ?: ""),
+                        "size"         to c.getLong(sizeIdx),
                         "dateModified" to c.getLong(dateIdx) * 1000L,
-                        "mimeType" to c.getStringOrNull(mimeIdx),
-                        "mediaType" to c.getInt(mediaIdx),
-                        "width" to if (wIdx >= 0) c.getInt(wIdx) else 0,
-                        "height" to if (hIdx >= 0) c.getInt(hIdx) else 0,
-                        "duration" to if (dIdx >= 0) c.getLong(dIdx) else 0L
+                        "mimeType"     to c.getStringOrNull(mimeIdx),
+                        "mediaType"    to mediaType,
+                        "width"        to if (wIdx >= 0) c.getInt(wIdx)  else 0,
+                        "height"       to if (hIdx >= 0) c.getInt(hIdx)  else 0,
+                        "duration"     to if (dIdx >= 0) c.getLong(dIdx) else 0L
                     )
                 )
             }
@@ -156,4 +157,38 @@ class MediaStoreScanner(private val context: Context) {
     }
 
     private fun Cursor.getStringOrNull(i: Int) = if (isNull(i)) null else getString(i)
+
+    /**
+     * Builds the correct typed MediaStore URI for the given row ID and media type.
+     *
+     * Using typed URIs (Images.Media, Video.Media, Audio.Media) instead of the
+     * generic Files URI is required for ContentResolver.loadThumbnail (API 29+)
+     * and legacy MediaStore.Images.Thumbnails (API < 29) to work correctly.
+     *
+     * Falls back to the generic Files URI for documents and unknown types.
+     */
+    private fun buildMediaUri(id: Long, mediaType: Int): String {
+        val baseUri = when (mediaType) {
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                else
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                else
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+
+            MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                else
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+
+            else -> filesUri
+        }
+        return Uri.withAppendedPath(baseUri, id.toString()).toString()
+    }
 }

@@ -647,16 +647,22 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
   void initState() {
     super.initState();
     final cached = ThumbnailPathCache().get(_cacheKey);
-    if (cached != null) {
+    if (cached != null && File(cached).existsSync()) {
       _thumbPath = cached;
     } else {
-      _fetchThumb();
+      if (cached != null) ThumbnailPathCache().clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _fetchThumb();
+      });
     }
   }
 
   Future<void> _fetchThumb() async {
-    if (_loading) return;
-    setState(() => _loading = true);
+    if (_loading || !mounted) return;
+    setState(() {
+      _loading = true;
+      _error = false;
+    });
 
     try {
       final path = await ThumbnailQueue().request(
@@ -668,19 +674,24 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
           kind: widget.item.kind,
         ),
       );
-      if (mounted) {
+      if (!mounted) return;
+      if (path != null && File(path).existsSync()) {
         setState(() {
           _thumbPath = path;
           _loading = false;
         });
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         setState(() {
           _loading = false;
           _error = true;
         });
       }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = true;
+      });
     }
   }
 
@@ -692,11 +703,30 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
         child: Image.file(
           File(_thumbPath!),
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) => _placeholder(),
+          errorBuilder: (context, error, stack) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _thumbPath = null;
+                  _error = false;
+                });
+                _fetchThumb();
+              }
+            });
+            return _placeholder();
+          },
         ),
       );
     }
-    if (_error) return _placeholder(icon: Icons.broken_image);
+    if (_error) {
+      return GestureDetector(
+        onTap: () {
+          setState(() => _error = false);
+          _fetchThumb();
+        },
+        child: _placeholder(icon: Icons.broken_image),
+      );
+    }
     return _placeholder(loading: _loading);
   }
 

@@ -3,12 +3,14 @@ package com.example.media_manager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
 import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
+import android.util.Log
+import android.util.Size
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
@@ -19,10 +21,6 @@ import java.io.FileOutputStream
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * thumbnail را روی دیسک می‌نویسد و فقط «مسیر» را به Dart می‌دهد.
- * مزیت: هیچ بایت‌آرایه‌ای در heap نیتیو یا Dart انباشته نمی‌شود.
- */
 class ThumbnailEngine(private val context: Context) {
 
     private val dir = File(context.cacheDir, "mm_thumbs").apply { mkdirs() }
@@ -30,10 +28,13 @@ class ThumbnailEngine(private val context: Context) {
     private val inFlight = ConcurrentHashMap<String, Deferred<String?>>()
 
     companion object {
+        private const val TAG = "MM_Thumb"
         private const val MAX_CONCURRENT = 4
-        private const val QUALITY = 80
-        private const val MAX_CACHE_BYTES = 96L * 1024 * 1024
+        private const val QUALITY = 85
+        private const val MAX_CACHE_BYTES = 128L * 1024 * 1024
     }
+
+    // ─── Public entry point ───────────────────────────────────────────────
 
     suspend fun thumbnail(
         scope: CoroutineScope,
@@ -48,7 +49,6 @@ class ThumbnailEngine(private val context: Context) {
         val cached = File(dir, "$key.jpg")
         if (cached.exists() && cached.length() > 0) return cached.absolutePath
 
-        // dedupe: چند سلول لیست که هم‌زمان همان فایل را می‌خواهند
         val deferred = inFlight.getOrPut(key) {
             scope.async(Dispatchers.IO) {
                 try {
@@ -58,153 +58,229 @@ class ThumbnailEngine(private val context: Context) {
                 }
             }
         }
-        return try { deferred.await() } catch (_: CancellationException) { null } catch (_: Throwable) { null }
+        return try {
+            deferred.await()
+        } catch (_: CancellationException) { null }
+          catch (e: Throwable) {
+            Log.e(TAG, "thumbnail error: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
     }
+
+    // ─── Core generator ───────────────────────────────────────────────────
 
     private fun generate(
         uriOrPath: String, w: Int, h: Int,
         isVideo: Boolean, isAudio: Boolean, out: File
     ): String? {
-        var bmp: Bitmap? = null
-        try {
-            bmp = when {
-                isAudio -> albumArt(uriOrPath, w, h)
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uriOrPath.startsWith("content://") ->
-                    loadThumbnailApi29(Uri.parse(uriOrPath), w, h)
-                isVideo -> videoFrame(uriOrPath, w, h)
-                else -> decodeSampled(uriOrPath, w, h)
-            } ?: return null
+        val bmp: Bitmap = when {
+            isAudio -> albumArt(uriOrPath, w, h)
+            isVideo -> videoFrame(uriOrPath, w, h)
+            else    -> imageBitmap(uriOrPath, w, h)
+        } ?: return null
 
+        return try {
+            saveBitmap(bmp, out)
+        } finally {
+            bmp.recycle()
+        }
+    }
+
+    private fun saveBitmap(bmp: Bitmap, out: File): String? {
+        return try {
             FileOutputStream(out).use { fos ->
-                BufferedOutputStream(fos, 65536).use { bos ->
+                BufferedOutputStream(fos, 65_536).use { bos ->
                     bmp.compress(Bitmap.CompressFormat.JPEG, QUALITY, bos)
                     bos.flush()
                 }
-                fos.fd.sync()
+                // NOTE: fd.sync() intentionally omitted — throws SyncFailedException
+                // on cacheDir (tmpfs/virtual FS) on many Android devices. flush() is sufficient.
             }
+            if (out.length() == 0L) { out.delete(); return null }
             trimCache()
-            return out.absolutePath
+            out.absolutePath
         } catch (e: Throwable) {
+            Log.e(TAG, "saveBitmap failed: ${e.javaClass.simpleName}: ${e.message}")
             out.delete()
-            return null
-        } finally {
-            bmp?.recycle()   // ← نکته‌ای که در کد قبلی نبود
+            null
         }
+    }
+
+    // ─── Image strategies ─────────────────────────────────────────────────
+
+    private fun imageBitmap(uriOrPath: String, w: Int, h: Int): Bitmap? {
+        val isContent = uriOrPath.startsWith("content://")
+        val uri = if (isContent) Uri.parse(uriOrPath) else null
+
+        // Strategy 1: ContentResolver.loadThumbnail (API 29+) — fastest, no full decode
+        if (uri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            tryLoadThumbnail(uri, w, h)?.let { return it }
+        }
+
+        // Strategy 2: Legacy MediaStore.Images.Thumbnails (API < 29)
+        if (uri != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            tryLegacyImageThumbnail(uri, w, h)?.let { return it }
+        }
+
+        // Strategy 3: BitmapFactory two-pass decode (universal fallback)
+        return decodeSampled(uriOrPath, w, h)
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
+    private fun tryLoadThumbnail(uri: Uri, w: Int, h: Int): Bitmap? {
+        return try {
+            context.contentResolver.loadThumbnail(uri, Size(w, h), null)
+        } catch (_: Throwable) { null }
+    }
+
+    private fun tryLegacyImageThumbnail(uri: Uri, w: Int, h: Int): Bitmap? {
+        return try {
+            val id = uri.lastPathSegment?.toLongOrNull() ?: return null
+            @Suppress("DEPRECATION")
+            val bmp = MediaStore.Images.Thumbnails.getThumbnail(
+                context.contentResolver, id,
+                MediaStore.Images.Thumbnails.MINI_KIND, null
+            ) ?: return null
+            ThumbnailUtils.extractThumbnail(bmp, w, h, ThumbnailUtils.OPTIONS_RECYCLE_INPUT)
+        } catch (_: Throwable) { null }
     }
 
     /**
-     * API 29+: از ImageDecoder استفاده می‌کند که مستقیماً روی native layer
-     * کار می‌کند و verbose Skia logging ندارد.
-     * اگر شکست خورد، fallback به decodeSampled.
+     * Two-pass BitmapFactory decode: pass 1 measures dimensions to calculate
+     * the correct inSampleSize, pass 2 decodes at reduced resolution.
+     * Never loads the full image into heap.
      */
-    private fun loadThumbnailApi29(uri: Uri, w: Int, h: Int): Bitmap? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-        return try {
-            val src = ImageDecoder.createSource(context.contentResolver, uri)
-            ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
-                val sw = info.size.width
-                val sh = info.size.height
-                if (sw > w || sh > h) {
-                    val scale = minOf(w.toFloat() / sw, h.toFloat() / sh)
-                    decoder.setTargetSize(
-                        (sw * scale).toInt().coerceAtLeast(1),
-                        (sh * scale).toInt().coerceAtLeast(1)
-                    )
-                }
-                // setPreferredColorSpace requires API 31 — skip to stay compatible
-                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
-            }
-        } catch (_: Throwable) {
-            // Fallback به مسیر BitmapFactory
-            decodeSampled(uri.toString(), w, h)
-        }
-    }
-
-    /** decode دو مرحله‌ای: هیچ‌وقت تصویر کامل ۴۸MP وارد heap نمی‌شود */
     private fun decodeSampled(pathOrUri: String, reqW: Int, reqH: Int): Bitmap? {
-        fun open() = if (pathOrUri.startsWith("content://"))
-            context.contentResolver.openInputStream(Uri.parse(pathOrUri))
-        else File(pathOrUri).inputStream()
+        fun open() = try {
+            if (pathOrUri.startsWith("content://"))
+                context.contentResolver.openInputStream(Uri.parse(pathOrUri))
+            else
+                File(pathOrUri).inputStream()
+        } catch (_: Throwable) { null }
 
+        // Pass 1: measure
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         open()?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0) return null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
+        // Calculate power-of-two sample size
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= reqW && bounds.outHeight / (sample * 2) >= reqH) sample *= 2
+        while (bounds.outWidth / (sample * 2) >= reqW &&
+               bounds.outHeight / (sample * 2) >= reqH) sample *= 2
 
+        // Pass 2: decode at reduced size
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sample
-            inPreferredConfig = Bitmap.Config.RGB_565   // نصف حافظه برای thumbnail
+            inPreferredConfig = Bitmap.Config.RGB_565  // half memory vs ARGB_8888
         }
         val raw = open()?.use { BitmapFactory.decodeStream(it, null, opts) } ?: return null
-        val scaled = ThumbnailUtils.extractThumbnail(
-            raw, reqW, reqH, ThumbnailUtils.OPTIONS_RECYCLE_INPUT
-        )
-        return applyExif(pathOrUri, scaled)
+        val scaled = ThumbnailUtils.extractThumbnail(raw, reqW, reqH, ThumbnailUtils.OPTIONS_RECYCLE_INPUT)
+        return applyExifRotation(pathOrUri, scaled)
     }
 
-    private fun applyExif(pathOrUri: String, bmp: Bitmap): Bitmap {
+    // ─── Video ────────────────────────────────────────────────────────────
+
+    private fun videoFrame(uriOrPath: String, w: Int, h: Int): Bitmap? {
+        val retriever = MediaMetadataRetriever()
         return try {
-            val stream = if (pathOrUri.startsWith("content://"))
-                context.contentResolver.openInputStream(Uri.parse(pathOrUri)) else File(pathOrUri).inputStream()
-            val deg = stream?.use {
-                when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, 1)) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                    else -> 0f
+            if (uriOrPath.startsWith("content://")) {
+                context.contentResolver
+                    .openFileDescriptor(Uri.parse(uriOrPath), "r")
+                    ?.use { retriever.setDataSource(it.fileDescriptor) }
+            } else {
+                retriever.setDataSource(uriOrPath)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                retriever.getScaledFrameAtTime(-1, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h)
+            } else {
+                @Suppress("DEPRECATION")
+                retriever.frameAtTime?.let {
+                    ThumbnailUtils.extractThumbnail(it, w, h, ThumbnailUtils.OPTIONS_RECYCLE_INPUT)
                 }
-            } ?: 0f
-            if (deg == 0f) bmp else Bitmap.createBitmap(
-                bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(deg) }, true
-            ).also { if (it != bmp) bmp.recycle() }
-        } catch (_: Throwable) { bmp }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "videoFrame error: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        } finally {
+            runCatching { retriever.release() }
+        }
     }
 
-    private fun videoFrame(pathOrUri: String, w: Int, h: Int): Bitmap? {
-        val r = MediaMetadataRetriever()
-        return try {
-            if (pathOrUri.startsWith("content://"))
-                context.contentResolver.openFileDescriptor(Uri.parse(pathOrUri), "r")
-                    ?.use { r.setDataSource(it.fileDescriptor) }
-            else r.setDataSource(pathOrUri)
+    // ─── Audio ────────────────────────────────────────────────────────────
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1)
-                r.getScaledFrameAtTime(-1, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, w, h)
-            else r.frameAtTime?.let { ThumbnailUtils.extractThumbnail(it, w, h, ThumbnailUtils.OPTIONS_RECYCLE_INPUT) }
-        } catch (_: Throwable) { null } finally { runCatching { r.release() } }
-    }
-
-    private fun albumArt(pathOrUri: String, w: Int, h: Int): Bitmap? {
-        val r = MediaMetadataRetriever()
+    private fun albumArt(uriOrPath: String, w: Int, h: Int): Bitmap? {
+        val retriever = MediaMetadataRetriever()
         return try {
-            if (pathOrUri.startsWith("content://"))
-                context.contentResolver.openFileDescriptor(Uri.parse(pathOrUri), "r")
-                    ?.use { r.setDataSource(it.fileDescriptor) }
-            else r.setDataSource(pathOrUri)
-            val bytes = r.embeddedPicture ?: return null
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (uriOrPath.startsWith("content://")) {
+                context.contentResolver
+                    .openFileDescriptor(Uri.parse(uriOrPath), "r")
+                    ?.use { retriever.setDataSource(it.fileDescriptor) }
+            } else {
+                retriever.setDataSource(uriOrPath)
+            }
+            val bytes = retriever.embeddedPicture ?: return null
+            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
             var s = 1
-            while (bounds.outWidth / (s * 2) >= w) s *= 2
+            while (boundsOpts.outWidth / (s * 2) >= w) s *= 2
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size,
-                BitmapFactory.Options().apply { inSampleSize = s; inPreferredConfig = Bitmap.Config.RGB_565 })
-        } catch (_: Throwable) { null } finally { runCatching { r.release() } }
+                BitmapFactory.Options().apply {
+                    inSampleSize = s
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                })
+        } catch (e: Throwable) {
+            Log.e(TAG, "albumArt error: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        } finally {
+            runCatching { retriever.release() }
+        }
     }
+
+    // ─── EXIF rotation ────────────────────────────────────────────────────
+
+    private fun applyExifRotation(pathOrUri: String, bmp: Bitmap): Bitmap {
+        val degrees: Float = try {
+            val orientation = if (pathOrUri.startsWith("content://")) {
+                context.contentResolver.openInputStream(Uri.parse(pathOrUri))?.use {
+                    ExifInterface(it).getAttributeInt(
+                        ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+                } ?: ExifInterface.ORIENTATION_NORMAL
+            } else {
+                ExifInterface(pathOrUri).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            }
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90  -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } catch (_: Throwable) { 0f }
+
+        if (degrees == 0f) return bmp
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height,
+            Matrix().apply { postRotate(degrees) }, true
+        ).also { if (it !== bmp) bmp.recycle() }
+    }
+
+    // ─── Cache management ─────────────────────────────────────────────────
 
     private fun trimCache() {
         val files = dir.listFiles() ?: return
         var total = files.sumOf { it.length() }
         if (total <= MAX_CACHE_BYTES) return
-        files.sortedBy { it.lastModified() }.forEach {
+        files.sortedBy { it.lastModified() }.forEach { f ->
             if (total <= MAX_CACHE_BYTES) return
-            total -= it.length(); it.delete()
+            total -= f.length(); f.delete()
         }
     }
 
     fun clear() { dir.listFiles()?.forEach { it.delete() } }
 
-    private fun md5(s: String) = MessageDigest.getInstance("MD5")
-        .digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+    // ─── Utilities ────────────────────────────────────────────────────────
+
+    private fun md5(input: String): String =
+        MessageDigest.getInstance("MD5")
+            .digest(input.toByteArray())
+            .joinToString("") { "%02x".format(it) }
 }
