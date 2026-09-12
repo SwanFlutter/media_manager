@@ -2,27 +2,41 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.media_manager">
 
-    <!--
-    These permissions are automatically managed by the plugin.
-    No need to manually request permissions in code.
-    -->
-
-    <!-- Modern permissions for Android 13+ (API 33+) -->
+    <!-- ════════════════════════════════════════════════════════════════════
+         Android 13+ (API 33+): granular media permissions
+         ════════════════════════════════════════════════════════════════════ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
-    <!-- Legacy permissions for Android 5-12 (API 21-32) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    <!-- Android 14+ (API 34+): partial photo/video access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         Android 6–12 (API 23–32): classic storage permissions
+         maxSdkVersion caps keep these off Android 13+ where they have
+         no effect and can trigger Play Store warnings.
+         ════════════════════════════════════════════════════════════════════ -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Access to all files - Android 11+ -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+    <!-- ════════════════════════════════════════════════════════════════════
+         Android 11+ (API 30+): "All files access" required for the
+         archive / document file-system fallback scan.
+         This is a SPECIAL permission — the user must grant it via
+         Settings → Apps → Special app access → All files access.
+         The plugin exposes hasAllFilesAccess() + openAllFilesAccessSettings()
+         so the host app can guide the user.
+         ════════════════════════════════════════════════════════════════════ -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
         tools:ignore="ScopedStorage" />
 
-    <!-- Additional permission for older Android versions -->
+    <!-- Fine-grained media location — needed to read GPS tags from photos. -->
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
 </manifest>
