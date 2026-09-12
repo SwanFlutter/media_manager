@@ -40,6 +40,9 @@ class _FakeMediaManagerPlatform
   Future<bool> hasStoragePermission() async => true;
 
   @override
+  Future<bool> hasAllFilesAccess() async => true;
+
+  @override
   Future<void> openAllFilesAccessSettings() async {}
 
   @override
@@ -66,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Media Manager Demo'), findsOneWidget);
-    expect(find.byType(Tab), findsNWidgets(6));
+    expect(find.byType(Tab), findsNWidgets(7));
     expect(find.text('Explorer'), findsOneWidget);
     expect(find.text('No directories found. Tap Refresh.'), findsOneWidget);
   });

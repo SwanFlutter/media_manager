@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +24,13 @@ class MethodChannelMediaManager extends MediaManagerPlatform {
       'hasStoragePermission',
     );
     return result ?? false;
+  }
+
+  @override
+  Future<bool> hasAllFilesAccess() async {
+    final result = await methodChannel.invokeMethod<bool>('hasAllFilesAccess');
+    // Non-Android platforms do not implement this — assume access is fine.
+    return result ?? !Platform.isAndroid;
   }
 
   @override

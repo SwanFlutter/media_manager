@@ -4,14 +4,16 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'media_manager'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.version          = '1.0.3'
+  s.summary          = 'Flutter plugin for browsing media, archives and documents on macOS.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+A Flutter plugin for managing media files on macOS with paginated queries,
+on-disk thumbnail caching, archive discovery (zip/rar/7z/dmg/…) and
+file-system scanning.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://github.com/SwanFlutter/media_manager'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'SwanFlutter' => 'swanflutter@example.com' }
 
   s.source           = { :path => '.' }
   s.source_files = 'media_manager/Sources/media_manager/**/*'

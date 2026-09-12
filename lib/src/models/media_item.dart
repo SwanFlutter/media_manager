@@ -8,6 +8,7 @@ class MediaItem {
     required this.dateModified,
     required this.mediaType,
     this.mimeType,
+    this.path,
     this.width = 0,
     this.height = 0,
     this.duration = 0,
@@ -35,6 +36,11 @@ class MediaItem {
   /// MIME type string, e.g. `"image/jpeg"`. May be null.
   final String? mimeType;
 
+  /// Real file-system path when available (MediaStore `DATA` column on
+  /// Android, absolute path on iOS/macOS). May be null — e.g. for MediaStore
+  /// rows without a readable path on scoped-storage devices.
+  final String? path;
+
   /// Image / video width in pixels (0 if unavailable).
   final int width;
 
@@ -54,6 +60,7 @@ class MediaItem {
     dateModified: (m['dateModified'] as num?)?.toInt() ?? 0,
     mediaType: (m['mediaType'] as num?)?.toInt() ?? 0,
     mimeType: m['mimeType'] as String?,
+    path: m['path'] as String?,
     width: (m['width'] as num?)?.toInt() ?? 0,
     height: (m['height'] as num?)?.toInt() ?? 0,
     duration: (m['duration'] as num?)?.toInt() ?? 0,

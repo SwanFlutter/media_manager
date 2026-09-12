@@ -79,6 +79,7 @@ class _OptimizedMediaTabState extends State<OptimizedMediaTab>
         page: _page,
         pageSize: _pageSize,
       );
+
       if (mounted) {
         setState(() {
           _items.addAll(page);
@@ -374,6 +375,8 @@ class _OptimizedMediaTabState extends State<OptimizedMediaTab>
         return 'Audio';
       case MediaType.document:
         return 'Documents';
+      case MediaType.archive:
+        return 'Archives';
       case MediaType.any:
         return 'All Files';
       default:
@@ -391,6 +394,8 @@ class _OptimizedMediaTabState extends State<OptimizedMediaTab>
         return Icons.audio_file;
       case MediaType.document:
         return Icons.insert_drive_file;
+      case MediaType.archive:
+        return Icons.folder_zip;
       case MediaType.any:
         return Icons.folder;
       default:
@@ -647,10 +652,19 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
   void initState() {
     super.initState();
     final cached = ThumbnailPathCache().get(_cacheKey);
-    if (cached != null && File(cached).existsSync()) {
-      _thumbPath = cached;
+    if (cached != null) {
+      // Async existence check — never touch the file system synchronously
+      // on the UI thread; it janks the grid while scrolling.
+      File(cached).exists().then((ok) {
+        if (!mounted) return;
+        if (ok) {
+          setState(() => _thumbPath = cached);
+        } else {
+          ThumbnailPathCache().clear();
+          _fetchThumb();
+        }
+      });
     } else {
-      if (cached != null) ThumbnailPathCache().clear();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _fetchThumb();
       });
@@ -675,17 +689,24 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
         ),
       );
       if (!mounted) return;
-      if (path != null && File(path).existsSync()) {
-        setState(() {
-          _thumbPath = path;
-          _loading = false;
-        });
-      } else {
+      if (path == null) {
         setState(() {
           _loading = false;
           _error = true;
         });
+        return;
       }
+      File(path).exists().then((ok) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          if (ok) {
+            _thumbPath = path;
+          } else {
+            _error = true;
+          }
+        });
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -703,6 +724,7 @@ class _ThumbnailTileState extends State<_ThumbnailTile> {
         child: Image.file(
           File(_thumbPath!),
           fit: BoxFit.cover,
+          cacheWidth: 200,
           errorBuilder: (context, error, stack) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {

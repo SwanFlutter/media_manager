@@ -1,3 +1,50 @@
+## 1.0.3
+
+### iOS
+
+* **`assetToMap` — name never empty** — the `filename` KVC key on `PHAsset` returns `nil` on some iOS versions / devices. The name field now falls back in order: `filename` KVC → `PHAssetResource.originalFilename` (available iOS 8+, no sync wait required) → first component of `localIdentifier`. A blank display name is no longer possible.
+* **Expanded `archiveExts`** — aligned with Android and macOS sets. Added `aab`, `deb`, `rpm`, `jar`, `war`, `tbz2`, `txz`, `lz`, `lzma`, `tzst`, `whl`, `egg` (was 15 extensions, now 25).
+* **Expanded `docExts`** — added `dot`, `dotx`, `docm`, `xlsm`, `xlsb`, `pptm`, `ppsx`, `odt`, `ods`, `odp`, `htm`, `markdown`, `azw3`, `fb2`, `mdb`.
+* **`scanSandbox` improvements** — file budget raised from 20 000 to 50 000 visited entries; added `.skipsPackageDescendants` option to avoid descending into app bundles.
+* **Podspec metadata** — updated `version`, `summary`, `description`, `homepage`, `author` fields (were placeholder values).
+
+### macOS
+
+* **`hasAllFilesAccess` was not handled** — the `switch` fell through to `default` and returned `FlutterMethodNotImplemented`, causing a `MissingPluginException` on the Dart side. Added explicit `case "hasAllFilesAccess":` that returns `true` (macOS has no `MANAGE_EXTERNAL_STORAGE` concept; the sandbox + NSOpenPanel model always provides sufficient access).
+* **`mimeType(for:)` — replaced static 30-entry map with `UTType` API** — on macOS 11+ uses `UTType(filenameExtension:)?.preferredMIMEType` for full OS-backed coverage; on macOS 10.11–10.15 falls back to an expanded 55-entry hard-coded table that covers all image, video, audio, document, and archive extensions used by the plugin.
+* **Added `UniformTypeIdentifiers` import** — required for the `UTType` API path.
+* **Podspec metadata** — updated `version`, `summary`, `description`, `homepage`, `author` fields.
+
+---
+
+## 1.0.2
+
+### New Features
+
+* **Archive category** — new `MediaType.archive` (Android `Type.ARCHIVE`, iOS / macOS sandbox scan) with a dedicated method to list zip / rar / 7z / tar / gz / bz2 / xz / lzma / zst / apk / aab / deb / rpm / jar / war / cbz / cbr / epub and more. The Documents tab and the example app now have a separate **Archives** tab.
+* **Android — file-system fallback scan** — `MediaStore` does **not** index archives or many custom formats (this is especially true on Android 13+ and on most OEM ROMs), so `DOCUMENT`, `ARCHIVE` and custom-extension `ANY` queries now merge a bounded, depth-limited walk of every accessible external-storage volume into the MediaStore result. Files sitting in `Download/` that never made it into the media database are now visible.
+* **Android — custom extensions match by name too** — `buildExtensionFilter()` now always adds a `DISPLAY_NAME LIKE '%.ext'` term alongside the `mime_type IN (…)` term, so files with a missing or vendor-specific MIME (common for `zip`, `rar`, `7z`) are no longer silently dropped.
+* **Dart** — `MediaItem.path` field: the real file-system path when the platform can provide one (MediaStore `DATA` on Android, absolute path on iOS / macOS), `null` otherwise.
+* **Android / Dart** — new `MediaManager.hasAllFilesAccess()` — reports whether the "All files access" (MANAGE_EXTERNAL_STORAGE) special setting is granted, which is required for the archive / custom-extension file scan on Android 11+. The example now prompts the user to enable it on first launch.
+* **Android** — the MediaStore half of a merged Documents / Archives query is wrapped in `runCatching`, so a ROM that rejects the selection string still returns the file-system scan instead of throwing.
+* **iOS / macOS** — `getMediaPage` / `getMediaCount` with `document`, `archive` or a non-empty `extensions` filter resolve from the app sandbox (iOS: `Documents`, `Downloads`, `Caches`, `tmp`; macOS: the chosen root directory) instead of returning Photos-library assets, which never contain zips, PDFs or code files. macOS gains a full archive extension list.
+
+### Bug Fixes
+
+* **Android — Documents tab showed images/screenshots** — `buildSelection()` for `Type.DOCUMENT` was falling into the same `1=1` branch as `Type.ANY` when no extensions were supplied, returning every file in MediaStore (including `Screenshot*.png`, `*.jpg`, etc.). Fixed by introducing a 35-entry MIME whitelist for the built-in document types (PDF, Office, ODF, plain text, archives, eBooks, APKs, databases) plus an explicit `media_type NOT IN (image, video, audio)` guard so photos and media never appear in the Documents tab regardless of how the device's MIME database is configured.
+
+* **Android — many items showed a blank name** — `DISPLAY_NAME` can be `NULL` in MediaStore for files that were indexed before the scanner populated the column. The query now falls back to the last path segment of the content URI (URL-decoded) when `DISPLAY_NAME` is null or blank, so every item always has a meaningful filename.
+
+* **Android — duplicate rows when merging MediaStore + file-system scan** — merged results are de-duplicated on both the real path (`DATA`) and `name|size`, so a file indexed by MediaStore and also found by the walk is listed exactly once.
+
+* **Android — comment syntax error broke the build** — a KDoc line containing `image/*, video/*` accidentally opened nested block comments (Kotlin comments nest), swallowing the whole `companion object`. Rewritten without `/*` sequences.
+
+* **Example — removed debug `print` loop** — `_loadNext()` in `optimized_media_tab.dart` was printing every loaded item to the console (`Media File (document): …`), flooding logcat on every page load.
+
+* **Example — thumbnail grid jank (`Skipped N frames`)** — `File(...).existsSync()` was called synchronously in the UI thread for every tile during `initState` / after every platform call; replaced with the async `exists()` future and `Image.file(..., cacheWidth: 200)` to cut decode cost.
+
+---
+
 ## 1.0.1
 
 ### Bug Fixes

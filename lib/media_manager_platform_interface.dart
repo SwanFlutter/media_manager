@@ -36,6 +36,13 @@ abstract class MediaManagerPlatform extends PlatformInterface {
   Future<bool> hasStoragePermission() =>
       throw UnimplementedError('hasStoragePermission() not implemented.');
 
+  /// Returns `true` when the app can enumerate arbitrary directories on
+  /// external storage.  On Android 11+ this means the "All Files Access"
+  /// (MANAGE_EXTERNAL_STORAGE) special access setting; it is always `true` on
+  /// Android 10 and below and on iOS / macOS.
+  Future<bool> hasAllFilesAccess() =>
+      throw UnimplementedError('hasAllFilesAccess() not implemented.');
+
   /// Asks the user for storage / media-read permission.
   /// Returns `true` when at least one permission was granted.
   Future<bool> requestStoragePermission() =>

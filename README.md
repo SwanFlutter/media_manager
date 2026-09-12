@@ -42,7 +42,7 @@ Provides paginated queries, on-disk thumbnail caching, directory browsing, archi
 
 ```yaml
 dependencies:
-  media_manager: ^1.0.2
+  media_manager: ^1.0.3
 ```
 
 ```bash
@@ -904,21 +904,6 @@ try {
 
 ---
 
-## Contributors
-
-<p align="left">
-  <a href="https://github.com/SwanFlutter">
-    <img src="https://contrib.rocks/image?repo=SwanFlutter/SwanFlutter" alt="SwanFlutter" style="vertical-align:middle;" />
-    <span style="vertical-align:middle"> SwanFlutter</span>
-  </a>
-</p>
-
-<a href="https://github.com/rezash76">
-  <img src="https://avatars.githubusercontent.com/u/38264846?s=64&v=4" alt="rezash76" height="32" width="32" style="border-radius:50%;vertical-align:middle;" />
-  <strong style="vertical-align:middle"> rezash76</strong> — رضا شریفی
-</a>
-
----
 
 ## License
 

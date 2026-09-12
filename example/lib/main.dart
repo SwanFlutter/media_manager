@@ -48,7 +48,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 6, vsync: this);
+    _tabs = TabController(length: 7, vsync: this);
     _checkPermission();
   }
 
@@ -63,7 +63,34 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
   Future<void> _checkPermission() async {
     final granted = await _mm.requestStoragePermission();
     setState(() => _hasPermission = granted);
-    if (granted) _loadDirectories();
+    if (!granted) return;
+    _loadDirectories();
+    // Archives / custom formats need raw directory listing. On Android 11+
+    // READ_MEDIA_* does not grant that — we need the "All files access"
+    // special setting, so nudge the user once if it is missing.
+    if (!await _mm.hasAllFilesAccess() && mounted) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Enable All Files Access'),
+          content: const Text(
+            'To show ZIP, RAR, APK and other archive files from folders like '
+            'Download, the app needs the "All files access" permission.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Skip'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+      if (go == true) await _mm.openAllFilesAccessSettings();
+    }
   }
 
   // ── Directories ─────────────────────────────────────────────────────────
@@ -86,6 +113,14 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
         page: page,
         pageSize: _dirPageSize,
       );
+
+      for (final item in contents) {
+        final isDir = item['isDirectory'] as bool;
+        if (!isDir) {
+          // non-directory entry
+        }
+      }
+
       setState(() {
         if (page == 0) {
           _directoryContents = contents;
@@ -170,6 +205,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
             Tab(text: 'Videos', icon: Icon(Icons.video_file)),
             Tab(text: 'Audio', icon: Icon(Icons.audio_file)),
             Tab(text: 'Docs', icon: Icon(Icons.insert_drive_file)),
+            Tab(text: 'Archives', icon: Icon(Icons.folder_zip)),
             Tab(text: 'Custom', icon: Icon(Icons.search)),
           ],
         ),
@@ -182,6 +218,7 @@ class _MediaManagerScreenState extends State<MediaManagerScreen>
           OptimizedMediaTab(mediaManager: _mm, mediaType: MediaType.video),
           OptimizedMediaTab(mediaManager: _mm, mediaType: MediaType.audio),
           OptimizedMediaTab(mediaManager: _mm, mediaType: MediaType.document),
+          OptimizedMediaTab(mediaManager: _mm, mediaType: MediaType.archive),
           _CustomFormatTab(mediaManager: _mm),
         ],
       ),
@@ -338,7 +375,7 @@ class _CustomFormatTabState extends State<_CustomFormatTab>
   final Map<String, List<String>> _categories = {
     'Apps': ['apk', 'ipa', 'exe', 'msi', 'deb', 'rpm'],
     'Code': ['dart', 'java', 'kt', 'swift', 'py', 'js', 'ts', 'cpp', 'c'],
-    'Archives': ['rar', '7z', 'tar', 'gz', 'bz2', 'xz'],
+    'Archives': ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'apk'],
     'Config': ['json', 'xml', 'yaml', 'yml', 'ini', 'cfg'],
     'Database': ['db', 'sqlite', 'sql', 'mdb'],
   };
@@ -379,6 +416,7 @@ class _CustomFormatTabState extends State<_CustomFormatTab>
         page: _page,
         pageSize: _pageSize,
       );
+
       setState(() {
         _items.addAll(page);
         _page++;

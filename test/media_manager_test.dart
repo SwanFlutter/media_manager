@@ -71,6 +71,11 @@ class MockMediaManagerPlatform
   Future<bool> requestStoragePermission() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> hasAllFilesAccess() {
+    throw UnimplementedError();
+  }
 }
 
 void main() {

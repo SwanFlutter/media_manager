@@ -1,6 +1,7 @@
 import FlutterMacOS
 import AppKit
 import AVFoundation
+import UniformTypeIdentifiers
 
 public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
@@ -52,6 +53,12 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
         case "openAllFilesAccessSettings":
             // No MANAGE_ALL_FILES equivalent on macOS — no-op.
+            safe.success(true)
+
+        case "hasAllFilesAccess":
+            // macOS has no MANAGE_EXTERNAL_STORAGE concept.
+            // The sandbox + NSOpenPanel model always grants access to whatever
+            // the user has chosen — report true so callers don't show a prompt.
             safe.success(true)
 
         // ── Paginated media query ──────────────────────────────────────────
@@ -143,7 +150,12 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
                                         "opus","aiff","alac","wma","dsf"])
     private static let docExts   = Set(["pdf","doc","docx","txt","rtf","odt",
                                         "xls","xlsx","ppt","pptx","pages","numbers",
-                                        "key","epub","md","csv","json","xml","html"])
+                                        "key","epub","md","csv","json","xml","html",
+                                        "zip","rar","7z","tar","gz","apk","db","sqlite"])
+    private static let archiveExts = Set(["zip","rar","7z","tar","gz","tgz","bz2",
+                                          "tbz2","xz","txz","lz","lzma","zst","tzst",
+                                          "apk","aab","deb","rpm","jar","war",
+                                          "cbz","cbr","epub","whl","egg"])
 
     private func allowedExtensions(type: String, extra: [String]) -> Set<String>? {
         var base: Set<String>?
@@ -152,6 +164,7 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
         case "video":    base = Self.videoExts
         case "audio":    base = Self.audioExts
         case "document": base = Self.docExts
+        case "archive":  base = Self.archiveExts
         default:         base = nil    // nil = accept all
         }
         if extra.isEmpty { return base }
@@ -197,6 +210,7 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
                 "dateModified" : modified,
                 "mediaType"    : mediaTypeInt(ext: ext),
                 "mimeType"     : mime,
+                "path"         : u.path,
                 "width"        : 0,
                 "height"       : 0,
                 "duration"     : 0,
@@ -295,25 +309,53 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
 
     // MARK: - Helpers
 
+    /// Resolves a file extension to its preferred MIME type.
+    /// Uses the UTType API on macOS 11+ for broad coverage, falls back to a
+    /// small hard-coded table on older systems.
     private func mimeType(for ext: String) -> String? {
+        guard !ext.isEmpty else { return nil }
+        if #available(macOS 11, *) {
+            return UTType(filenameExtension: ext)?.preferredMIMEType
+        }
+        // Fallback table for macOS 10.11 – 10.15
         let map: [String: String] = [
             "jpg":"image/jpeg","jpeg":"image/jpeg","png":"image/png",
             "gif":"image/gif","webp":"image/webp","bmp":"image/bmp",
             "tiff":"image/tiff","tif":"image/tiff","heic":"image/heic",
+            "heif":"image/heic","avif":"image/avif","raw":"image/x-raw",
             "mp4":"video/mp4","mov":"video/quicktime","m4v":"video/x-m4v",
-            "avi":"video/avi","mkv":"video/x-matroska","webm":"video/webm",
-            "mp3":"audio/mpeg","wav":"audio/wav","m4a":"audio/m4a",
+            "avi":"video/x-msvideo","mkv":"video/x-matroska","webm":"video/webm",
+            "wmv":"video/x-ms-wmv","flv":"video/x-flv","3gp":"video/3gpp",
+            "mpg":"video/mpeg","mpeg":"video/mpeg","ts":"video/mp2t",
+            "mp3":"audio/mpeg","wav":"audio/wav","m4a":"audio/mp4",
             "aac":"audio/aac","flac":"audio/flac","ogg":"audio/ogg",
-            "pdf":"application/pdf","doc":"application/msword",
+            "opus":"audio/opus","aiff":"audio/aiff","alac":"audio/alac",
+            "wma":"audio/x-ms-wma","dsf":"audio/x-dsf",
+            "pdf":"application/pdf",
+            "doc":"application/msword",
             "docx":"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "xls":"application/vnd.ms-excel",
             "xlsx":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "ppt":"application/vnd.ms-powerpoint",
             "pptx":"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "txt":"text/plain","html":"text/html","css":"text/css",
+            "odt":"application/vnd.oasis.opendocument.text",
+            "ods":"application/vnd.oasis.opendocument.spreadsheet",
+            "odp":"application/vnd.oasis.opendocument.presentation",
+            "txt":"text/plain","html":"text/html","htm":"text/html",
+            "css":"text/css","csv":"text/csv","md":"text/markdown",
             "json":"application/json","xml":"application/xml",
+            "rtf":"application/rtf","epub":"application/epub+zip",
             "zip":"application/zip","rar":"application/x-rar-compressed",
-            "7z":"application/x-7z-compressed",
+            "7z":"application/x-7z-compressed","tar":"application/x-tar",
+            "gz":"application/gzip","bz2":"application/x-bzip2",
+            "xz":"application/x-xz","tgz":"application/x-tar",
+            "apk":"application/vnd.android.package-archive",
+            "aab":"application/x-authorware-bin",
+            "deb":"application/vnd.debian.binary-package",
+            "rpm":"application/x-rpm","jar":"application/java-archive",
+            "war":"application/java-archive","whl":"application/zip",
+            "db":"application/x-sqlite3","sqlite":"application/x-sqlite3",
+            "sqlite3":"application/x-sqlite3",
         ]
         return map[ext]
     }

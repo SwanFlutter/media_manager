@@ -112,6 +112,7 @@ class MediaManagerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
       }
 
       "hasStoragePermission" -> result.success(hasPermission())
+      "hasAllFilesAccess" -> result.success(hasAllFilesAccess())
       "requestStoragePermission" -> requestPermission(result)
       "openAllFilesAccessSettings" -> { openAllFilesSettings(); result.success(true) }
 
@@ -124,6 +125,7 @@ class MediaManagerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
     "video" -> MediaStoreScanner.Type.VIDEO
     "audio" -> MediaStoreScanner.Type.AUDIO
     "document" -> MediaStoreScanner.Type.DOCUMENT
+    "archive" -> MediaStoreScanner.Type.ARCHIVE
     else -> MediaStoreScanner.Type.ANY
   }
 
@@ -164,6 +166,9 @@ class MediaManagerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activ
     }
     return out
   }
+
+  private fun hasAllFilesAccess(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
 
   private fun hasPermission(): Boolean = when {
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->

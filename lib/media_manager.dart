@@ -34,6 +34,15 @@ class MediaManager {
   Future<bool> hasStoragePermission() =>
       MediaManagerPlatform.instance.hasStoragePermission();
 
+  /// Returns `true` when the app can list arbitrary folders on external
+  /// storage (required for the Archives / custom-extension file-system scan
+  /// on Android 11+).  Always `true` on Android ≤10, iOS and macOS.
+  ///
+  /// When this returns `false`, call [openAllFilesAccessSettings] once and
+  /// ask the user to enable "All files access".
+  Future<bool> hasAllFilesAccess() =>
+      MediaManagerPlatform.instance.hasAllFilesAccess();
+
   /// Prompts the user for storage / media-read permission.
   ///
   /// Returns `true` when at least one relevant permission was granted.
@@ -97,6 +106,41 @@ class MediaManager {
     type: type,
     extensions: extensions,
   );
+
+  // ─── Archives (zip / rar / 7z / tar / apk …) ──────────────────────────────
+
+  /// Convenience method returning one page of **archive** files
+  /// (zip, rar, 7z, tar, gz, apk, epub, …).
+  ///
+  /// On Android this bypasses MediaStore entirely when needed and walks
+  /// external storage (e.g. `Download/`), because the media database does
+  /// not index archives on most devices. On iOS / macOS the app sandbox is
+  /// scanned instead.
+  ///
+  /// ```dart
+  /// final zips = await MediaManager().getArchiveFiles(
+  ///   extensions: ['zip'],   // optional narrowing, default: all archives
+  ///   page: 0,
+  ///   pageSize: 50,
+  /// );
+  /// ```
+  Future<List<MediaItem>> getArchiveFiles({
+    List<String> extensions = const [],
+    int page = 0,
+    int pageSize = 100,
+  }) => MediaManagerPlatform.instance.getMediaPage(
+    type: MediaType.archive,
+    extensions: extensions,
+    page: page,
+    pageSize: pageSize,
+  );
+
+  /// Total number of archive files on the device.
+  Future<int> getArchiveCount({List<String> extensions = const []}) =>
+      MediaManagerPlatform.instance.getMediaCount(
+        type: MediaType.archive,
+        extensions: extensions,
+      );
 
   // ─── Thumbnails ────────────────────────────────────────────────────────────
 
