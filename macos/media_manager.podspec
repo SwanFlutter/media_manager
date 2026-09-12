@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'media_manager'
-  s.version          = '1.0.3'
+  s.version          = '1.0.2'
   s.summary          = 'Flutter plugin for browsing media, archives and documents on macOS.'
   s.description      = <<-DESC
 A Flutter plugin for managing media files on macOS with paginated queries,

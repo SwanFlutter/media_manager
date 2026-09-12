@@ -42,7 +42,7 @@ Provides paginated queries, on-disk thumbnail caching, directory browsing, archi
 
 ```yaml
 dependencies:
-  media_manager: ^1.0.3
+  media_manager: ^1.0.2
 ```
 
 ```bash
