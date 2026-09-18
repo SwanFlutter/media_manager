@@ -539,7 +539,25 @@ class MediaStoreScanner(private val context: Context) {
             "application/x-lzma",
             "application/x-sqlite3",
             "application/vnd.sqlite3",
-            "application/vnd.android.package-archive"
+            "application/vnd.android.package-archive",
+            // Windows / cross-platform executables and installers
+            "application/x-msdownload",
+            "application/vnd.microsoft.portable-executable",
+            "application/x-dosexec",
+            "application/x-ms-dos-executable",
+            "application/x-msi",
+            "application/vnd.ms-installer",
+            "application/x-msix",
+            "application/x-appx",
+            // Disk images
+            "application/x-iso9660-image",
+            "application/x-apple-diskimage",
+            "application/x-vhd",
+            // Misc document formats
+            "text/tab-separated-values",
+            "application/xhtml+xml",
+            "application/vnd.ms-access",
+            "application/x-msaccess"
         )
 
         /**
@@ -548,8 +566,27 @@ class MediaStoreScanner(private val context: Context) {
          * archives (zip, rar, 7z...) and ebook formats on many devices.
          */
         private val DOCUMENT_FALLBACK_EXTS: List<String> = listOf(
+            // Archives / app packages
             "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "lzma", "zst",
-            "apk", "epub", "mobi", "azw3", "fb2", "cbz", "cbr", "db", "sqlite", "sqlite3"
+            "apk", "xapk", "apks", "ipa",
+            // Windows / cross-platform executables and installers
+            "exe", "msi", "msix", "appx", "jar",
+            "bat", "cmd", "ps1", "vbs", "sh",
+            // Disk images
+            "iso", "img", "dmg", "vhd", "vhdx",
+            // Office documents
+            "pdf", "doc", "docx", "docm", "dot", "dotx",
+            "xls", "xlsx", "xlsm", "xlsb", "xlt",
+            "ppt", "pptx", "pptm", "pps", "ppsx", "pot",
+            "odt", "ods", "odp",
+            "pages", "numbers", "key",
+            // Plain text / markup / data
+            "txt", "rtf", "md", "csv", "tsv", "log",
+            "html", "htm", "xml", "json", "yaml", "yml", "ini", "cfg",
+            // eBooks / comics
+            "epub", "mobi", "azw3", "fb2", "cbz", "cbr",
+            // Databases
+            "db", "sqlite", "sqlite3", "mdb", "accdb"
         )
 
         /** All archive / package extensions scanned by [Type.ARCHIVE]. */

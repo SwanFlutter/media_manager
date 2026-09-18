@@ -42,7 +42,7 @@ Provides paginated queries, on-disk thumbnail caching, directory browsing, archi
 
 ```yaml
 dependencies:
-  media_manager: ^1.0.2
+  media_manager: ^1.0.3
 ```
 
 ```bash
@@ -483,7 +483,7 @@ final page2 = await mm.getDirectoryContents(
 | `MediaType.image` | jpg, jpeg, png, gif, bmp, webp, heic, heif, tiff … |
 | `MediaType.video` | mp4, mov, mkv, avi, webm, 3gp, m4v … |
 | `MediaType.audio` | mp3, m4a, flac, ogg, wav, aac, opus … |
-| `MediaType.document` | pdf, doc/x, xls/x, ppt/x, txt, csv, html, epub, zip, apk … |
+| `MediaType.document` | pdf, doc/x, xls/x, ppt/x, txt, csv, html, md, log, yaml/ini, epub, zip, apk, xapk, **exe**, msi, msix, bat, ps1, iso, img, dmg, db, sqlite … |
 | `MediaType.archive` | zip, rar, 7z, tar, gz, tgz, bz2, xz, lzma, zst, apk, aab, deb, rpm, jar, cbz, epub … |
 | `MediaType.any` | All files — combine with `extensions` for custom types |
 

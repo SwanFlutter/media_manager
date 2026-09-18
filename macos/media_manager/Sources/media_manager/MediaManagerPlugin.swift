@@ -148,10 +148,16 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
                                         "flv","webm","3gp","mpg","mpeg","ts"])
     private static let audioExts = Set(["mp3","wav","m4a","aac","ogg","flac",
                                         "opus","aiff","alac","wma","dsf"])
-    private static let docExts   = Set(["pdf","doc","docx","txt","rtf","odt",
-                                        "xls","xlsx","ppt","pptx","pages","numbers",
-                                        "key","epub","md","csv","json","xml","html",
-                                        "zip","rar","7z","tar","gz","apk","db","sqlite"])
+    private static let docExts   = Set(["pdf","doc","docx","dot","dotx","docm","txt","rtf","odt",
+                                        "xls","xlsx","xlsm","xlsb","ppt","pptx","pptm","ppsx",
+                                        "pages","numbers","odt","ods","odp",
+                                        "key","epub","md","csv","tsv","json","xml","html","htm",
+                                        "log","yaml","yml","ini","cfg",
+                                        "zip","rar","7z","tar","gz","apk","xapk","apks","ipa",
+                                        "exe","msi","msix","appx","jar","bat","cmd","ps1","vbs","sh",
+                                        "iso","img","dmg","vhd","vhdx",
+                                        "db","sqlite","sqlite3","mdb","accdb",
+                                        "mobi","azw3","fb2","cbz","cbr"])
     private static let archiveExts = Set(["zip","rar","7z","tar","gz","tgz","bz2",
                                           "tbz2","xz","txz","lz","lzma","zst","tzst",
                                           "apk","aab","deb","rpm","jar","war",

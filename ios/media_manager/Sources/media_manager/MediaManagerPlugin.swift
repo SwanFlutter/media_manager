@@ -151,16 +151,22 @@ public final class MediaManagerPlugin: NSObject, FlutterPlugin {
         // OpenDocument
         "odt", "ods", "odp",
         // Plain text / markup
-        "txt", "rtf", "md", "markdown", "csv",
+        "txt", "rtf", "md", "markdown", "csv", "tsv",
         "html", "htm", "xml", "json",
+        "log", "yaml", "yml", "ini", "cfg",
         // eBooks
         "epub", "mobi", "azw3", "fb2",
         // Archives (documents tab also shows archives)
         "zip", "rar", "7z", "tar", "gz",
         // App packages
-        "apk", "ipa",
+        "apk", "ipa", "xapk", "apks",
+        // Windows / cross-platform executables and installers
+        "exe", "msi", "msix", "appx", "jar",
+        "bat", "cmd", "ps1", "vbs", "sh",
+        // Disk images
+        "iso", "img", "dmg", "vhd", "vhdx",
         // Databases
-        "db", "sqlite", "sqlite3", "mdb",
+        "db", "sqlite", "sqlite3", "mdb", "accdb",
     ]
 
     private func authStatus() -> PHAuthorizationStatus {
