@@ -1,7 +1,15 @@
+## 1.0.4
+
+* fix publish
+
+---
+
 ## 1.0.3
 
 - Added executables, installers and disk images (.exe, .msi, .msix, .appx, .iso, .img, .dmg, ...)
   plus expanded office/text/database formats to the document type on Android, iOS and macOS.
+
+---
 
 ## 1.0.2
 
